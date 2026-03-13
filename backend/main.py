@@ -11,6 +11,7 @@ from agents.payment_agent import PaymentAgent
 from agents.pfi_agent import PFIAgent
 from agents.escrow_agent import SmartEscrowAgent
 from models.project import Milestone, MilestoneStatus
+from database.firebase import firebase_db
 
 app = FastAPI(
     title="MilestoneAI API",
@@ -63,9 +64,50 @@ def get_escrow_agent():
         _escrow_agent = SmartEscrowAgent()
     return _escrow_agent
 
-# In-memory storage
+# In-memory storage (fallback if Firebase is not available)
 projects_db = {}
 freelancers_db = {}
+
+def save_project_to_db(project_id: str, project: dict):
+    """Save project to both Firebase and in-memory storage"""
+    projects_db[project_id] = project
+    if firebase_db.is_available():
+        try:
+            firebase_db.create_project(project_id, project)
+        except Exception as e:
+            print(f"Failed to save to Firebase: {e}")
+
+def get_project_from_db(project_id: str) -> Optional[dict]:
+    """Get project from Firebase or in-memory storage"""
+    if firebase_db.is_available():
+        try:
+            project = firebase_db.get_project(project_id)
+            if project:
+                return project
+        except Exception as e:
+            print(f"Failed to get from Firebase: {e}")
+    return projects_db.get(project_id)
+
+def save_vault_to_db(vault_id: str, vault: dict):
+    """Save vault to Firebase"""
+    if firebase_db.is_available():
+        try:
+            firebase_db.create_vault(vault_id, vault)
+        except Exception as e:
+            print(f"Failed to save vault to Firebase: {e}")
+
+def update_freelancer_in_db(freelancer_id: str, data: dict):
+    """Update freelancer in both storages"""
+    freelancers_db[freelancer_id] = data
+    if firebase_db.is_available():
+        try:
+            existing = firebase_db.get_user(freelancer_id)
+            if existing:
+                firebase_db.update_user(freelancer_id, data)
+            else:
+                firebase_db.create_user(freelancer_id, data)
+        except Exception as e:
+            print(f"Failed to update freelancer in Firebase: {e}")
 
 # Request Models
 class ProjectRequest(BaseModel):
@@ -146,15 +188,19 @@ async def create_project(request: ProjectRequest):
             employer_id=request.employer_id
         )
         project["vault_id"] = vault["vault_id"]
-        projects_db[project_id] = project
+        
+        # Save to both Firebase and in-memory
+        save_project_to_db(project_id, project)
+        save_vault_to_db(vault["vault_id"], vault)
 
         if request.freelancer_id not in freelancers_db:
-            freelancers_db[request.freelancer_id] = {
+            freelancer_data = {
                 "id": request.freelancer_id,
                 "pfi_score": 500.0,
                 "total_projects": 0,
                 "completed_milestones": 0
             }
+            update_freelancer_in_db(request.freelancer_id, freelancer_data)
 
         return {
             "success": True,
@@ -240,7 +286,7 @@ async def submit_milestone(request: SubmitWorkRequest):
 
 @app.get("/api/projects/{project_id}")
 async def get_project(project_id: str):
-    project = projects_db.get(project_id)
+    project = get_project_from_db(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
