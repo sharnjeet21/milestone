@@ -81,6 +81,7 @@ export default function RoleSelectionPage() {
                 key={card.role}
                 initial={{ opacity: 0, x: index === 0 ? -48 : 48 }}
                 animate={{ opacity: 1, x: 0 }}
+                whileHover={{ y: -2, transition: { duration: 0.2 } }}
                 transition={{ duration: 0.5, ease: "easeOut", delay: index * 0.08 }}
                 className="group rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur transition-all hover:border-green-500/50 hover:shadow-green-500/10 dark:bg-zinc-900/70"
               >
@@ -109,13 +110,15 @@ export default function RoleSelectionPage() {
                   ))}
                 </div>
 
-                <button
+                <motion.button
                   type="button"
                   onClick={() => handleSelectRole(card.role)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   className="mt-10 inline-flex h-11 w-full items-center justify-center rounded-xl bg-green-600 px-4 text-sm font-medium text-white transition-colors hover:bg-green-700"
                 >
                   {card.cta}
-                </button>
+                </motion.button>
               </motion.div>
             );
           })}

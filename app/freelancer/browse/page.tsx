@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { useToast } from "@/components/ToastProvider";
+import { useToast } from "@/context/ToastContext";
 import { cn } from "@/lib/utils";
 import type { DeliverableType } from "@/lib/types";
 
@@ -243,17 +243,20 @@ export default function FreelancerBrowsePage() {
     setAppliedProjects(nextProjects);
     window.localStorage.setItem(APPLIED_PROJECTS_KEY, JSON.stringify(nextProjects));
     setSelectedProject(null);
-    toast({
-      title: "Application submitted",
-      description: `You're now tracking ${selectedProject.title} in My Active Projects.`,
-    });
+    toast.success(
+      "Application submitted",
+      `You're now tracking ${selectedProject.title} in My Active Projects.`,
+    );
   };
 
   return (
     <>
       <main className="min-h-[calc(100svh-3.5rem)] px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <div className="flex flex-col gap-4 rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70 md:flex-row md:items-end md:justify-between">
+          <motion.div
+            whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            className="flex flex-col gap-4 rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70 md:flex-row md:items-end md:justify-between"
+          >
             <div>
               <p className="text-sm font-medium uppercase tracking-[0.24em] text-green-600 dark:text-green-400">
                 Freelancer discovery
@@ -265,7 +268,7 @@ export default function FreelancerBrowsePage() {
             <span className="inline-flex w-fit rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1.5 text-sm font-medium text-green-700 dark:text-green-300">
               {filteredProjects.length} open now
             </span>
-          </div>
+          </motion.div>
 
           <Tabs.Root defaultValue="browse" className="mt-8">
             <Tabs.List className="grid w-full max-w-md grid-cols-2 rounded-2xl border border-border/50 bg-foreground/[0.03] p-1">
@@ -284,7 +287,10 @@ export default function FreelancerBrowsePage() {
             </Tabs.List>
 
             <Tabs.Content value="browse" className="mt-8 space-y-6">
-              <section className="rounded-[2rem] border border-border/60 bg-white/80 p-6 shadow-lg shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+              <motion.section
+                whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                className="rounded-[2rem] border border-border/60 bg-white/80 p-6 shadow-lg shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
+              >
                 <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr_1fr_1.2fr]">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">
@@ -363,7 +369,7 @@ export default function FreelancerBrowsePage() {
                     </div>
                   </div>
                 </div>
-              </section>
+              </motion.section>
 
               <section className="grid gap-6 lg:grid-cols-2">
                 {filteredProjects.map((project) => {
@@ -371,9 +377,10 @@ export default function FreelancerBrowsePage() {
                   const alreadyApplied = appliedProjectIds.has(project.id);
 
                   return (
-                    <div
+                    <motion.div
                       key={project.id}
-                      className="rounded-[1.75rem] border border-border/60 bg-white/85 p-6 shadow-sm shadow-slate-900/5 transition-shadow hover:-translate-y-0.5 hover:shadow-md dark:bg-zinc-900/70"
+                      whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                      className="rounded-[1.75rem] border border-border/60 bg-white/85 p-6 shadow-sm shadow-slate-900/5 transition-shadow hover:shadow-md dark:bg-zinc-900/70"
                     >
                       <div className="flex items-center justify-between gap-4">
                         <span
@@ -402,7 +409,7 @@ export default function FreelancerBrowsePage() {
                         >
                           {project.description}
                         </p>
-                        <button
+                        <motion.button
                           type="button"
                           onClick={() =>
                             setExpandedDescriptions((current) => ({
@@ -410,10 +417,12 @@ export default function FreelancerBrowsePage() {
                               [project.id]: !expanded,
                             }))
                           }
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
                           className="mt-2 text-sm font-medium text-green-700 transition hover:text-green-800 dark:text-green-300 dark:hover:text-green-200"
                         >
                           {expanded ? "See less" : "See more"}
-                        </button>
+                        </motion.button>
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">
@@ -437,16 +446,18 @@ export default function FreelancerBrowsePage() {
                           </p>
                         </div>
 
-                        <button
+                        <motion.button
                           type="button"
                           onClick={() => setSelectedProject(project)}
                           disabled={alreadyApplied}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
                           className="inline-flex h-10 items-center justify-center rounded-xl bg-green-600 px-4 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-600/50"
                         >
                           {alreadyApplied ? "Applied" : "Apply"}
-                        </button>
+                        </motion.button>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </section>
@@ -456,8 +467,9 @@ export default function FreelancerBrowsePage() {
               <div className="grid gap-6 lg:grid-cols-2">
                 {appliedProjects.length ? (
                   appliedProjects.map((project) => (
-                    <div
+                    <motion.div
                       key={project.id}
+                      whileHover={{ y: -2, transition: { duration: 0.2 } }}
                       className="rounded-[1.75rem] border border-border/60 bg-white/85 p-6 shadow-sm shadow-slate-900/5 dark:bg-zinc-900/70"
                     >
                       <div className="flex items-start justify-between gap-4">
@@ -504,10 +516,13 @@ export default function FreelancerBrowsePage() {
                           Go to Workspace
                         </Link>
                       </div>
-                    </div>
+                    </motion.div>
                   ))
                 ) : (
-                  <div className="rounded-[1.75rem] border border-dashed border-border/60 bg-white/70 p-8 text-center dark:bg-zinc-900/50">
+                  <motion.div
+                    whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                    className="rounded-[1.75rem] border border-dashed border-border/60 bg-white/70 p-8 text-center dark:bg-zinc-900/50"
+                  >
                     <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800">
                       <TimerReset className="h-5 w-5 text-muted-foreground" />
                     </div>
@@ -518,7 +533,7 @@ export default function FreelancerBrowsePage() {
                       Apply to a project from the Browse tab and it will appear here
                       as part of your active pipeline.
                     </p>
-                  </div>
+                  </motion.div>
                 )}
               </div>
             </Tabs.Content>
@@ -553,13 +568,15 @@ export default function FreelancerBrowsePage() {
                     Apply to {selectedProject.title}?
                   </h2>
                 </div>
-                <button
+                <motion.button
                   type="button"
                   onClick={() => setSelectedProject(null)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/60"
                 >
                   <X className="h-4 w-4" />
-                </button>
+                </motion.button>
               </div>
 
               <div className="mt-6 space-y-3 rounded-2xl bg-zinc-50 p-4 dark:bg-zinc-900">
@@ -583,20 +600,24 @@ export default function FreelancerBrowsePage() {
               </p>
 
               <div className="mt-8 flex justify-end gap-3">
-                <button
+                <motion.button
                   type="button"
                   onClick={() => setSelectedProject(null)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   className="inline-flex h-10 items-center justify-center rounded-xl border border-border/60 px-4 text-sm font-medium text-foreground transition hover:bg-foreground/5"
                 >
                   Cancel
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   type="button"
                   onClick={handleApply}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   className="inline-flex h-10 items-center justify-center rounded-xl bg-green-600 px-4 text-sm font-medium text-white transition hover:bg-green-700"
                 >
                   Confirm Apply
-                </button>
+                </motion.button>
               </div>
             </motion.div>
           </>

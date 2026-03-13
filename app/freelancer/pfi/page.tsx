@@ -12,10 +12,11 @@ import {
   Target,
   TrendingUp,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-import { useToast } from "@/components/ToastProvider";
+import { useToast } from "@/context/ToastContext";
 import { getFreelancerPFI } from "@/lib/api";
+import { useAPI } from "@/lib/useAPI";
 import { cn } from "@/lib/utils";
 import type { FreelancerProfile, PFIUpdate } from "@/lib/types";
 
@@ -293,8 +294,11 @@ export default function FreelancerPfiPage() {
   const { toast } = useToast();
   const [user, setUser] = useState<StoredUser | null>(null);
   const [pfi, setPfi] = useState<PfiViewModel | null>(null);
+  const [localFallback, setLocalFallback] = useState<PfiViewModel | null>(null);
   const [history, setHistory] = useState<PaymentHistoryItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const { error: pfiError, execute: executePfi } =
+    useAPI<PFIUpdate | FreelancerProfile>();
 
   useEffect(() => {
     let cancelled = false;
@@ -308,35 +312,31 @@ export default function FreelancerPfiPage() {
       if (!cancelled) {
         setUser(currentUser);
         setHistory(paymentHistory);
+        setLocalFallback(localPfi);
+        setPfi(localPfi);
+        setIsLoaded(true);
       }
 
       if (!currentUser?.id) {
-        if (!cancelled) {
-          setPfi(localPfi);
-          setIsLoaded(true);
-        }
         return;
       }
 
-      try {
-        const response = await getFreelancerPFI(currentUser.id);
+      const response = await executePfi(() => getFreelancerPFI(currentUser.id));
 
-        if (!cancelled) {
-          setPfi(normalizePfiResponse(response, localPfi));
-        }
-      } catch {
-        if (!cancelled) {
-          setPfi(localPfi);
-          toast({
-            title: "Using local PFI snapshot",
-            description: "Live PFI data was unavailable, so a local summary was loaded.",
-          });
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoaded(true);
-        }
+      if (cancelled) {
+        return;
       }
+
+      if (response) {
+        setPfi(normalizePfiResponse(response, localPfi));
+        return;
+      }
+
+      setPfi(localPfi);
+      toast.info(
+        "Using local PFI snapshot",
+        "Live PFI data was unavailable, so a local summary was loaded.",
+      );
     };
 
     void loadData();
@@ -344,7 +344,29 @@ export default function FreelancerPfiPage() {
     return () => {
       cancelled = true;
     };
-  }, [toast]);
+  }, [executePfi, toast]);
+
+  const handleRetry = useCallback(async () => {
+    if (!user?.id) {
+      return;
+    }
+
+    const fallback = localFallback ?? deriveLocalPfi(loadEvaluationHistory());
+    setLocalFallback(fallback);
+
+    const response = await executePfi(() => getFreelancerPFI(user.id));
+
+    if (response) {
+      setPfi(normalizePfiResponse(response, fallback));
+      return;
+    }
+
+    setPfi(fallback);
+    toast.info(
+      "Using local PFI snapshot",
+      "Live PFI data was unavailable, so a local summary was loaded.",
+    );
+  }, [executePfi, localFallback, toast, user]);
 
   const userName = user?.name ?? "Freelancer";
   const userEmail = user?.email ?? "Complete your first project to build your PFI score.";
@@ -403,10 +425,55 @@ export default function FreelancerPfiPage() {
     );
   }
 
+  if (pfiError && !pfi) {
+    return (
+      <main className="min-h-[calc(100svh-3.5rem)] px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-2xl">
+          <div className="rounded-[2rem] border border-border/60 bg-white/85 p-8 text-center shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+            <p className="text-sm font-medium uppercase tracking-[0.24em] text-red-500">
+              Unable to load PFI
+            </p>
+            <p className="mt-4 text-sm text-muted-foreground">
+              We couldn&apos;t reach the PFI service. Please try again.
+            </p>
+            <motion.button
+              type="button"
+              onClick={handleRetry}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-green-600 px-5 text-sm font-medium text-white transition hover:bg-green-700"
+            >
+              Retry
+            </motion.button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-[calc(100svh-3.5rem)] px-4 py-10 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-8">
-        <section className="rounded-[2rem] border border-border/60 bg-white/85 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+        {pfiError ? (
+          <div className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-200 md:flex-row md:items-center">
+            <span>
+              Live PFI data couldn&apos;t be refreshed. Showing your latest local snapshot.
+            </span>
+            <motion.button
+              type="button"
+              onClick={handleRetry}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="inline-flex h-9 items-center justify-center rounded-full bg-amber-600 px-4 text-xs font-semibold text-white transition hover:bg-amber-500"
+            >
+              Retry
+            </motion.button>
+          </div>
+        ) : null}
+        <motion.section
+          whileHover={{ y: -2, transition: { duration: 0.2 } }}
+          className="rounded-[2rem] border border-border/60 bg-white/85 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
+        >
           <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
             <div className="flex items-center gap-5">
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-600 text-2xl font-medium text-white">
@@ -495,7 +562,7 @@ export default function FreelancerPfiPage() {
               )}
             </div>
           </div>
-        </section>
+        </motion.section>
 
         <Tabs.Root defaultValue="overview">
           <Tabs.List className="grid w-full max-w-md grid-cols-2 rounded-2xl border border-border/50 bg-foreground/[0.03] p-1">
@@ -558,7 +625,7 @@ export default function FreelancerPfiPage() {
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${card.value}%` }}
-                            transition={{ duration: 0.8, delay: index * 0.2, ease: "easeOut" }}
+                            transition={{ duration: 0.8, delay: index * 0.1, ease: "easeOut" }}
                             className="h-full rounded-full bg-green-500"
                           />
                         </div>
@@ -569,7 +636,10 @@ export default function FreelancerPfiPage() {
               </div>
             </section>
 
-            <section className="rounded-[2rem] border border-border/60 bg-white/85 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+            <motion.section
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+              className="rounded-[2rem] border border-border/60 bg-white/85 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
+            >
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-medium text-foreground">Tier Ladder</h2>
@@ -618,7 +688,7 @@ export default function FreelancerPfiPage() {
                   );
                 })}
               </div>
-            </section>
+            </motion.section>
 
             <section>
               <div>
@@ -661,7 +731,10 @@ export default function FreelancerPfiPage() {
               </p>
             </div>
 
-            <div className="overflow-hidden rounded-[2rem] border border-border/60 bg-white/85 shadow-xl shadow-slate-900/5 dark:bg-zinc-900/70">
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+              className="overflow-hidden rounded-[2rem] border border-border/60 bg-white/85 shadow-xl shadow-slate-900/5 dark:bg-zinc-900/70"
+            >
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-border/60">
                   <thead className="bg-zinc-50/80 dark:bg-zinc-950/60">
@@ -701,7 +774,7 @@ export default function FreelancerPfiPage() {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </motion.div>
           </Tabs.Content>
         </Tabs.Root>
       </div>

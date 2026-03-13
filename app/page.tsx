@@ -199,6 +199,7 @@ export default function HomePage() {
                     key={step.number}
                     initial={{ opacity: 0, y: 24 }}
                     whileInView={{ opacity: 1, y: 0 }}
+                    whileHover={{ y: -2, transition: { duration: 0.2 } }}
                     viewport={{ once: true, amount: 0.3 }}
                     transition={{ duration: 0.45, delay: index * 0.15 }}
                     className="relative rounded-3xl border border-border/70 bg-white/80 p-6 shadow-lg shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
@@ -240,7 +241,10 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-8 shadow-2xl shadow-black/30 backdrop-blur">
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+              className="rounded-[2rem] border border-white/10 bg-white/5 p-8 shadow-2xl shadow-black/30 backdrop-blur"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm uppercase tracking-[0.24em] text-zinc-400">
@@ -303,18 +307,19 @@ export default function HomePage() {
 
               <div className="mt-8 grid grid-cols-2 gap-4">
                 {pfiStats.map((stat) => (
-                  <div
+                  <motion.div
                     key={stat.label}
+                    whileHover={{ y: -2, transition: { duration: 0.2 } }}
                     className="rounded-2xl border border-white/10 bg-white/5 p-4"
                   >
                     <p className="text-sm text-zinc-400">{stat.label}</p>
                     <p className="mt-2 text-lg font-medium text-white">
                       {stat.value}
                     </p>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
-            </div>
+            </motion.div>
           </div>
         </section>
       </main>

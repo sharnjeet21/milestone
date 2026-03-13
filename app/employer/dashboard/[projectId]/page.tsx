@@ -14,10 +14,11 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { useToast } from "@/components/ToastProvider";
+import { useToast } from "@/context/ToastContext";
 import { getEscrow, getFreelancerPFI, getProject } from "@/lib/api";
+import { useAPI } from "@/lib/useAPI";
 import { cn } from "@/lib/utils";
 import type { FreelancerProfile, Milestone, PFIUpdate, Project } from "@/lib/types";
 
@@ -393,13 +394,15 @@ function MilestoneCard({ milestone }: { milestone: Milestone }) {
 
       {milestone.feedback ? (
         <div className="mt-5">
-          <button
+          <motion.button
             type="button"
             onClick={() => setFeedbackOpen((current) => !current)}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             className="text-sm font-medium text-foreground transition hover:text-green-600 dark:hover:text-green-400"
           >
             AI Feedback
-          </button>
+          </motion.button>
           <AnimatePresence initial={false}>
             {feedbackOpen ? (
               <motion.div
@@ -424,46 +427,45 @@ export default function EmployerProjectDashboardPage() {
   const params = useParams<{ projectId: string }>();
   const projectId = Array.isArray(params?.projectId) ? params.projectId[0] : params?.projectId;
   const { toast } = useToast();
-  const [project, setProject] = useState<Project | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const {
+    data: project,
+    loading: isLoading,
+    error: projectError,
+    execute: executeProject,
+    setData: setProject,
+  } = useAPI<Project>();
   const [escrow, setEscrow] = useState<EscrowSummary | null>(null);
   const [pfi, setPfi] = useState<PfiCardData | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [isAsking, setIsAsking] = useState(false);
 
+  const loadProject = useCallback(async () => {
+    if (!projectId) {
+      return null;
+    }
+
+    const response = await executeProject(() => getProject(projectId));
+
+    if (response) {
+      setProject(response);
+      window.localStorage.setItem(`project:${response.id}`, JSON.stringify(response));
+      return response;
+    }
+
+    const fallback = getStoredProject(projectId) ?? buildFallbackProject(projectId);
+    setProject(fallback);
+    toast.info(
+      "Loaded local project snapshot",
+      "Live project data was unavailable, so a saved preview was used.",
+    );
+    return fallback;
+  }, [executeProject, projectId, setProject, toast]);
+
   useEffect(() => {
     if (!projectId) {
       return;
     }
-
-    let cancelled = false;
-
-    const loadProject = async () => {
-      setIsLoading(true);
-
-      try {
-        const response = await getProject(projectId);
-
-        if (!cancelled) {
-          setProject(response);
-          window.localStorage.setItem(`project:${response.id}`, JSON.stringify(response));
-        }
-      } catch {
-        if (!cancelled) {
-          const fallback = getStoredProject(projectId) ?? buildFallbackProject(projectId);
-          setProject(fallback);
-          toast({
-            title: "Loaded local project snapshot",
-            description: "Live project data was unavailable, so a saved preview was used.",
-          });
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
 
     void loadProject();
     const intervalId = window.setInterval(() => {
@@ -471,10 +473,9 @@ export default function EmployerProjectDashboardPage() {
     }, 30000);
 
     return () => {
-      cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [projectId, toast]);
+  }, [projectId, loadProject]);
 
   useEffect(() => {
     if (!project) {
@@ -632,13 +633,12 @@ export default function EmployerProjectDashboardPage() {
 
       setChatMessages((current) => [...current, assistantMessage].slice(-5));
     } catch (error) {
-      toast({
-        title: "AI project manager unavailable",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Please try your question again shortly.",
-      });
+      toast.error(
+        "AI project manager unavailable",
+        error instanceof Error
+          ? error.message
+          : "Please try your question again shortly.",
+      );
     } finally {
       setIsAsking(false);
     }
@@ -667,6 +667,32 @@ export default function EmployerProjectDashboardPage() {
     );
   }
 
+  if (projectError && !project) {
+    return (
+      <main className="min-h-[calc(100svh-3.5rem)] px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-2xl">
+          <div className="rounded-[2rem] border border-border/60 bg-white/85 p-8 text-center shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+            <p className="text-sm font-medium uppercase tracking-[0.24em] text-red-500">
+              Unable to load project
+            </p>
+            <p className="mt-4 text-sm text-muted-foreground">
+              We couldn&apos;t reach the project service. Please try again.
+            </p>
+            <motion.button
+              type="button"
+              onClick={() => void loadProject()}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-green-600 px-5 text-sm font-medium text-white transition hover:bg-green-700"
+            >
+              Retry
+            </motion.button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   if (!project) {
     return null;
   }
@@ -684,7 +710,26 @@ export default function EmployerProjectDashboardPage() {
   return (
     <main className="min-h-[calc(100svh-3.5rem)] px-4 py-10 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-8">
-        <section className="flex flex-col gap-6 rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70 lg:flex-row lg:items-end lg:justify-between">
+        {projectError ? (
+          <div className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-200 md:flex-row md:items-center">
+            <span>
+              Live project data couldn&apos;t be refreshed. Showing the latest local snapshot.
+            </span>
+            <motion.button
+              type="button"
+              onClick={() => void loadProject()}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="inline-flex h-9 items-center justify-center rounded-full bg-amber-600 px-4 text-xs font-semibold text-white transition hover:bg-amber-500"
+            >
+              Retry
+            </motion.button>
+          </div>
+        ) : null}
+        <motion.section
+          whileHover={{ y: -2, transition: { duration: 0.2 } }}
+          className="flex flex-col gap-6 rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70 lg:flex-row lg:items-end lg:justify-between"
+        >
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.24em] text-green-600 dark:text-green-400">
               Employer dashboard
@@ -709,7 +754,7 @@ export default function EmployerProjectDashboardPage() {
               Day {projectDays.currentDay} of {projectDays.totalDays || 1}
             </span>
           </div>
-        </section>
+        </motion.section>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[
@@ -730,7 +775,10 @@ export default function EmployerProjectDashboardPage() {
 
         <section className="grid gap-6 lg:grid-cols-[1.45fr_0.95fr]">
           <div className="space-y-6">
-            <div className="rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+              className="rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
+            >
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-medium text-foreground">
@@ -751,11 +799,14 @@ export default function EmployerProjectDashboardPage() {
                   <MilestoneCard key={milestone.id} milestone={milestone} />
                 ))}
               </div>
-            </div>
+            </motion.div>
           </div>
 
           <aside className="space-y-6">
-            <div className="rounded-[2rem] border border-border/60 bg-white/80 p-6 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+              className="rounded-[2rem] border border-border/60 bg-white/80 p-6 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
+            >
               <h3 className="text-lg font-medium text-foreground">Escrow Vault</h3>
 
               <div className="mt-6 flex items-center gap-6">
@@ -821,9 +872,12 @@ export default function EmployerProjectDashboardPage() {
                     ))}
                 </div>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="rounded-[2rem] border border-border/60 bg-white/80 p-6 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+              className="rounded-[2rem] border border-border/60 bg-white/80 p-6 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
+            >
               <h3 className="text-lg font-medium text-foreground">Freelancer PFI Score</h3>
 
               <div className="mt-6 flex items-center gap-6">
@@ -888,7 +942,7 @@ export default function EmployerProjectDashboardPage() {
               </div>
 
               <div className="mt-6 space-y-4">
-                {Object.entries(pfiData.metrics).map(([label, value]) => (
+                {Object.entries(pfiData.metrics).map(([label, value], index) => (
                   <div key={label}>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">{label}</span>
@@ -898,16 +952,19 @@ export default function EmployerProjectDashboardPage() {
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${value}%` }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
+                        transition={{ duration: 0.8, delay: index * 0.1, ease: "easeOut" }}
                         className="h-full rounded-full bg-green-500"
                       />
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            </motion.div>
 
-            <div className="rounded-[2rem] border border-border/60 bg-white/80 p-6 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+              className="rounded-[2rem] border border-border/60 bg-white/80 p-6 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
+            >
               <div className="flex items-center gap-3">
                 <MessageSquareText className="h-5 w-5 text-green-600 dark:text-green-400" />
                 <h3 className="text-lg font-medium text-foreground">
@@ -943,16 +1000,18 @@ export default function EmployerProjectDashboardPage() {
                   placeholder="Ask about risk, payout timing, or milestone status"
                   className="h-11 w-full rounded-xl border border-border/50 bg-background px-4 text-sm outline-none transition focus:border-green-500/60"
                 />
-                <button
+                <motion.button
                   type="submit"
                   disabled={isAsking}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-green-600 px-4 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-wait"
                 >
                   <Send className="h-4 w-4" />
                   {isAsking ? "Thinking" : "Ask"}
-                </button>
+                </motion.button>
               </form>
-            </div>
+            </motion.div>
           </aside>
         </section>
       </div>

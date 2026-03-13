@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { useToast } from "@/components/ToastProvider";
+import { useToast } from "@/context/ToastContext";
 import { cn } from "@/lib/utils";
 
 type AIChatProps = {
@@ -88,20 +88,18 @@ export function AIChat({
 
       setMessages((current) => [...current, assistantMessage].slice(-12));
     } catch (error) {
-      toast({
-        title: "AI chat unavailable",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Please try again in a moment.",
-      });
+      toast.error(
+        "AI chat unavailable",
+        error instanceof Error ? error.message : "Please try again in a moment.",
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -2, transition: { duration: 0.2 } }}
       className={cn(
         "rounded-[2rem] border border-border/60 bg-white/85 p-6 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70",
         className,
@@ -161,16 +159,18 @@ export function AIChat({
           placeholder="Ask the AI assistant"
           className="h-11 w-full rounded-xl border border-border/50 bg-background px-4 text-sm outline-none transition focus:border-green-500/60"
         />
-        <button
+        <motion.button
           type="submit"
           disabled={isLoading}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-green-600 px-4 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-wait"
         >
           <Send className="h-4 w-4" />
           Ask
-        </button>
+        </motion.button>
       </form>
-    </div>
+    </motion.div>
   );
 }
 

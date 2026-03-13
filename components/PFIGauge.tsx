@@ -66,7 +66,8 @@ export function PFIGauge({
   };
 
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -2, transition: { duration: 0.2 } }}
       className={cn(
         "rounded-[2rem] border border-border/60 bg-white/85 p-6 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70",
         className,
@@ -138,7 +139,7 @@ export function PFIGauge({
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${value}%` }}
-                  transition={{ duration: 0.8, delay: index * 0.12, ease: "easeOut" }}
+                  transition={{ duration: 0.8, delay: index * 0.1, ease: "easeOut" }}
                   className="h-full rounded-full bg-green-500"
                 />
               </div>
@@ -146,7 +147,7 @@ export function PFIGauge({
           ))}
         </div>
       ) : null}
-    </div>
+    </motion.div>
   );
 }
 

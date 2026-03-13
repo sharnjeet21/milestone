@@ -3,7 +3,8 @@ import { Inter } from "next/font/google";
 import Script from "next/script";
 
 import { Navbar } from "@/components/Navbar";
-import { ToastProvider } from "@/components/ToastProvider";
+import PageTransition from "@/components/PageTransition";
+import { ToastProvider } from "@/context/ToastContext";
 
 import "./globals.css";
 
@@ -41,7 +42,9 @@ export default function RootLayout({
         <ToastProvider>
           <div className="flex min-h-screen flex-col bg-background text-foreground">
             <Navbar />
-            <div className="flex-1">{children}</div>
+            <div className="flex-1">
+              <PageTransition>{children}</PageTransition>
+            </div>
           </div>
         </ToastProvider>
       </body>

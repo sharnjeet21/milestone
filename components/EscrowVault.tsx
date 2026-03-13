@@ -1,7 +1,8 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { ArrowDownLeft, ArrowUpRight, AlertTriangle } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -52,8 +53,13 @@ export function EscrowVault({
     [expanded, transactions],
   );
 
+  const fillStyle = {
+    "--vault-fill": `${fillHeight}%`,
+  } as CSSProperties;
+
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -2, transition: { duration: 0.2 } }}
       className={cn(
         "rounded-[2rem] border border-border/60 bg-white/85 p-6 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70",
         className,
@@ -64,8 +70,8 @@ export function EscrowVault({
       <div className="mt-6 flex items-center gap-6">
         <div className="relative h-52 w-16 overflow-hidden rounded-full border border-border/60 bg-zinc-100 dark:bg-zinc-950">
           <div
-            className="absolute bottom-0 left-0 w-full rounded-full bg-gradient-to-t from-green-600 via-green-500 to-emerald-300 transition-[height] duration-700 ease-out"
-            style={{ height: `${fillHeight}%` }}
+            className="absolute bottom-0 left-0 h-[var(--vault-fill)] w-full rounded-full bg-gradient-to-t from-green-600 via-green-500 to-emerald-300 transition-[height] duration-700 ease-out"
+            style={fillStyle}
           />
         </div>
 
@@ -83,13 +89,15 @@ export function EscrowVault({
         <div className="flex items-center justify-between gap-4">
           <p className="text-sm font-medium text-foreground">Transaction feed</p>
           {transactions.length > 5 ? (
-            <button
+            <motion.button
               type="button"
               onClick={() => setExpanded((current) => !current)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               className="text-sm font-medium text-green-700 transition hover:text-green-800 dark:text-green-300 dark:hover:text-green-200"
             >
               {expanded ? "View less" : "View all"}
-            </button>
+            </motion.button>
           ) : null}
         </div>
 
@@ -133,7 +141,7 @@ export function EscrowVault({
           ))}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

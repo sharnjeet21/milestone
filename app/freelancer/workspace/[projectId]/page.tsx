@@ -22,10 +22,11 @@ import {
   X,
 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useToast } from "@/components/ToastProvider";
+import { useToast } from "@/context/ToastContext";
 import { getProject, submitMilestone } from "@/lib/api";
+import { useAPI } from "@/lib/useAPI";
 import { cn } from "@/lib/utils";
 import type {
   ChecklistEvaluation,
@@ -555,7 +556,13 @@ export default function FreelancerWorkspacePage() {
   const progressSpring = useSpring(progressValue, { stiffness: 75, damping: 20 });
   const progressWidth = useTransform(progressSpring, (value) => `${value}%`);
   const [progressNumber, setProgressNumber] = useState(0);
-  const [project, setProject] = useState<Project | null>(null);
+  const {
+    data: project,
+    loading: isLoading,
+    error: projectError,
+    execute: executeProject,
+    setData: setProject,
+  } = useAPI<Project>();
   const [submissionType, setSubmissionType] = useState<SubmissionType>("text");
   const [submissionContent, setSubmissionContent] = useState("");
   const [daysTaken, setDaysTaken] = useState("");
@@ -563,7 +570,6 @@ export default function FreelancerWorkspacePage() {
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evaluationMessageIndex, setEvaluationMessageIndex] = useState(0);
   const [evaluationResult, setEvaluationResult] = useState<EvaluationResult | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
   const submitPromiseRef = useRef<Promise<EvaluationResult> | null>(null);
 
   useEffect(() => {
@@ -574,40 +580,32 @@ export default function FreelancerWorkspacePage() {
     return unsubscribe;
   }, [progressSpring]);
 
+  const loadProject = useCallback(async () => {
+    if (!projectId) {
+      return null;
+    }
+
+    const response = await executeProject(() => getProject(projectId));
+
+    if (response) {
+      setProject(response);
+      saveProject(response);
+      return response;
+    }
+
+    const fallback = getStoredProject(projectId) ?? buildProjectFromAppliedProject(projectId);
+    setProject(fallback);
+    saveProject(fallback);
+    return fallback;
+  }, [executeProject, projectId, setProject]);
+
   useEffect(() => {
     if (!projectId) {
       return;
     }
 
-    let cancelled = false;
-
-    const loadProject = async () => {
-      try {
-        const response = await getProject(projectId);
-
-        if (!cancelled) {
-          setProject(response);
-          saveProject(response);
-        }
-      } catch {
-        if (!cancelled) {
-          const fallback = getStoredProject(projectId) ?? buildProjectFromAppliedProject(projectId);
-          setProject(fallback);
-          saveProject(fallback);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoaded(true);
-        }
-      }
-    };
-
     void loadProject();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId]);
+  }, [projectId, loadProject]);
 
   const activeMilestone = useMemo(
     () => (project ? getActiveMilestone(project) : null),
@@ -675,10 +673,10 @@ export default function FreelancerWorkspacePage() {
 
   const handleSubmit = async () => {
     if (!project || !activeMilestone || !submissionContent.trim()) {
-      toast({
-        title: "Submission incomplete",
-        description: "Add your work details before sending it to AI evaluation.",
-      });
+      toast.error(
+        "Submission incomplete",
+        "Add your work details before sending it to AI evaluation.",
+      );
       return;
     }
 
@@ -742,10 +740,10 @@ export default function FreelancerWorkspacePage() {
 
       setProject(nextProject);
       setEvaluationResult(normalizedResult);
-      toast({
-        title: "Evaluation complete",
-        description: `AI marked this milestone as ${normalizedResult.status.replaceAll("_", " ").toLowerCase()}.`,
-      });
+      toast.success(
+        "Evaluation complete",
+        `AI marked this milestone as ${normalizedResult.status.replaceAll("_", " ").toLowerCase()}.`,
+      );
     } finally {
       window.clearInterval(messageInterval);
       setIsEvaluating(false);
@@ -756,7 +754,7 @@ export default function FreelancerWorkspacePage() {
     return null;
   }
 
-  if (!isLoaded || !project || !activeMilestone) {
+  if (isLoading && !project) {
     return (
       <main className="min-h-[calc(100svh-3.5rem)] px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl animate-pulse space-y-6">
@@ -769,6 +767,36 @@ export default function FreelancerWorkspacePage() {
     );
   }
 
+  if (projectError && !project) {
+    return (
+      <main className="min-h-[calc(100svh-3.5rem)] px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-2xl">
+          <div className="rounded-[2rem] border border-border/60 bg-white/85 p-8 text-center shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+            <p className="text-sm font-medium uppercase tracking-[0.24em] text-red-500">
+              Unable to load workspace
+            </p>
+            <p className="mt-4 text-sm text-muted-foreground">
+              We couldn&apos;t reach the project service. Please try again.
+            </p>
+            <motion.button
+              type="button"
+              onClick={() => void loadProject()}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-green-600 px-5 text-sm font-medium text-white transition hover:bg-green-700"
+            >
+              Retry
+            </motion.button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!project || !activeMilestone) {
+    return null;
+  }
+
   const tone = evaluationResult ? getStatusTone(evaluationResult.status) : null;
   const refundAmount =
     evaluationResult && activeMilestone
@@ -778,9 +806,29 @@ export default function FreelancerWorkspacePage() {
 
   return (
     <main className="min-h-[calc(100svh-3.5rem)] px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-        <section className="space-y-6">
-          <div className="rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+      <div className="mx-auto max-w-7xl space-y-6">
+        {projectError ? (
+          <div className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-200 md:flex-row md:items-center">
+            <span>
+              Live workspace data couldn&apos;t be refreshed. Showing the latest local snapshot.
+            </span>
+            <motion.button
+              type="button"
+              onClick={() => void loadProject()}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="inline-flex h-9 items-center justify-center rounded-full bg-amber-600 px-4 text-xs font-semibold text-white transition hover:bg-amber-500"
+            >
+              Retry
+            </motion.button>
+          </div>
+        ) : null}
+        <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+          <section className="space-y-6">
+          <motion.div
+            whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            className="rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
+          >
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-medium uppercase tracking-[0.24em] text-green-600 dark:text-green-400">
@@ -817,9 +865,12 @@ export default function FreelancerWorkspacePage() {
                 </span>
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          <div className="rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+          <motion.div
+            whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            className="rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
+          >
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-green-500/10 text-green-600 dark:text-green-400">
                 <Sparkles className="h-5 w-5" />
@@ -843,10 +894,12 @@ export default function FreelancerWorkspacePage() {
                 const Icon = option.icon;
 
                 return (
-                  <button
+                  <motion.button
                     key={option.key}
                     type="button"
                     onClick={() => setSubmissionType(option.key as SubmissionType)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className={cn(
                       "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition",
                       submissionType === option.key
@@ -856,7 +909,7 @@ export default function FreelancerWorkspacePage() {
                   >
                     <Icon className="h-4 w-4" />
                     {option.label}
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
@@ -891,10 +944,12 @@ export default function FreelancerWorkspacePage() {
               </div>
             </div>
 
-            <button
+            <motion.button
               type="button"
               onClick={handleSubmit}
               disabled={isEvaluating}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               className="mt-6 inline-flex h-12 w-full items-center justify-center rounded-xl bg-green-600 px-6 text-base font-medium text-white transition hover:bg-green-700 disabled:cursor-wait"
             >
               {isEvaluating ? (
@@ -905,8 +960,8 @@ export default function FreelancerWorkspacePage() {
               ) : (
                 "Submit for AI Evaluation"
               )}
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
 
           <AnimatePresence mode="wait">
             {isEvaluating ? (
@@ -915,6 +970,7 @@ export default function FreelancerWorkspacePage() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
+                whileHover={{ y: -2, transition: { duration: 0.2 } }}
                 className="rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
               >
                 <div className="h-8 w-40 animate-pulse rounded-full bg-zinc-100 dark:bg-zinc-800" />
@@ -941,6 +997,7 @@ export default function FreelancerWorkspacePage() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
                 transition={{ duration: 0.35, ease: "easeOut" }}
+                whileHover={{ y: -2, transition: { duration: 0.2 } }}
                 className="rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
               >
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -1085,10 +1142,13 @@ export default function FreelancerWorkspacePage() {
               </motion.div>
             ) : null}
           </AnimatePresence>
-        </section>
+          </section>
 
-        <aside className="space-y-6 lg:sticky lg:top-20 lg:self-start">
-          <div className="rounded-[2rem] border border-border/60 bg-white/80 p-6 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+          <aside className="space-y-6 lg:sticky lg:top-20 lg:self-start">
+          <motion.div
+            whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            className="rounded-[2rem] border border-border/60 bg-white/80 p-6 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
+          >
             <div className="flex items-center gap-3">
               <Layers3 className="h-5 w-5 text-green-600 dark:text-green-400" />
               <h2 className="text-lg font-medium text-foreground">Milestone Details</h2>
@@ -1215,8 +1275,9 @@ export default function FreelancerWorkspacePage() {
                 </div>
               </div>
             </div>
-          </div>
-        </aside>
+          </motion.div>
+          </aside>
+        </div>
       </div>
     </main>
   );

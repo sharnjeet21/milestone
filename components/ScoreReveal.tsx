@@ -1,9 +1,9 @@
 "use client";
 
-import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Check, CircleDollarSign, Sparkles, X } from "lucide-react";
-import { useEffect, useState } from "react";
 
+import { countUp } from "@/lib/animations";
 import { cn } from "@/lib/utils";
 import type { EvaluationResult, PFIUpdate } from "@/lib/types";
 
@@ -46,28 +46,17 @@ function AnimatedNumber({
   value,
   formatter,
   className,
+  springOptions,
 }: {
   value: number;
   formatter?: (value: number) => string;
   className?: string;
+  springOptions?: Parameters<typeof countUp>[1];
 }) {
-  const motionValue = useMotionValue(0);
-  const spring = useSpring(motionValue, { stiffness: 90, damping: 16 });
-  const [displayValue, setDisplayValue] = useState(0);
+  const { value: displayValue } = countUp(value, springOptions);
+  const roundedValue = Math.round(displayValue);
 
-  useEffect(() => {
-    motionValue.set(value);
-  }, [motionValue, value]);
-
-  useEffect(() => {
-    const unsubscribe = spring.on("change", (latest) => {
-      setDisplayValue(Math.round(latest));
-    });
-
-    return unsubscribe;
-  }, [spring]);
-
-  return <span className={className}>{formatter ? formatter(displayValue) : displayValue}</span>;
+  return <span className={className}>{formatter ? formatter(roundedValue) : roundedValue}</span>;
 }
 
 export function ScoreReveal({
@@ -76,16 +65,38 @@ export function ScoreReveal({
   className,
 }: ScoreRevealProps) {
   const tone = getTone(evaluation.status);
+  const delays = {
+    score: 0,
+    banner: 0.3,
+    checklist: 0.5,
+    strengths: 0.8,
+    payment: 1.0,
+    pfi: 1.2,
+  };
   const radius = 68;
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference - (Math.max(0, Math.min(evaluation.completion_score, 100)) / 100) * circumference;
   const refundedAmount = Math.max(evaluation.payout_amount * (100 / Math.max(evaluation.payout_percentage || 1, 1)) - evaluation.payout_amount, 0);
+  const checklistVariants = {
+    hidden: {},
+    visible: {
+      transition: {
+        delayChildren: delays.checklist,
+        staggerChildren: 0.08,
+      },
+    },
+  };
+  const checklistItemVariants = {
+    hidden: { opacity: 0, y: 12 },
+    visible: { opacity: 1, y: 0 },
+  };
 
   return (
     <motion.section
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
+      whileHover={{ y: -2, transition: { duration: 0.2 } }}
       className={cn(
         "rounded-[2rem] border border-border/60 bg-white/85 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70",
         className,
@@ -113,12 +124,16 @@ export function ScoreReveal({
               strokeDasharray={circumference}
               initial={{ strokeDashoffset: circumference }}
               animate={{ strokeDashoffset: dashOffset }}
-              transition={{ duration: 1.1, ease: "easeOut" }}
+              transition={{ duration: 1.1, ease: "easeOut", delay: delays.score }}
               className={tone.ring}
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <AnimatedNumber value={evaluation.completion_score} className="text-5xl font-medium text-foreground" />
+            <AnimatedNumber
+              value={evaluation.completion_score}
+              springOptions={{ duration: 1.5 }}
+              className="text-5xl font-medium text-foreground"
+            />
             <span className="mt-1 text-xs uppercase tracking-[0.3em] text-muted-foreground">
               Score
             </span>
@@ -126,9 +141,14 @@ export function ScoreReveal({
         </div>
 
         <div className="flex-1">
-          <div className={cn("inline-flex rounded-full px-4 py-2 text-sm font-medium", tone.banner)}>
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: delays.banner, duration: 0.35, ease: "easeOut" }}
+            className={cn("inline-flex rounded-full px-4 py-2 text-sm font-medium", tone.banner)}
+          >
             {evaluation.status.replaceAll("_", " ")}
-          </div>
+          </motion.div>
           <p className="mt-4 text-sm leading-7 text-muted-foreground">
             {evaluation.detailed_feedback}
           </p>
@@ -138,23 +158,13 @@ export function ScoreReveal({
       <motion.div
         initial="hidden"
         animate="visible"
-        variants={{
-          hidden: {},
-          visible: {
-            transition: {
-              staggerChildren: 0.08,
-            },
-          },
-        }}
+        variants={checklistVariants}
         className="mt-8 space-y-3"
       >
         {evaluation.checklist_results.map((item) => (
           <motion.div
             key={item.item}
-            variants={{
-              hidden: { opacity: 0, y: 12 },
-              visible: { opacity: 1, y: 0 },
-            }}
+            variants={checklistItemVariants}
             className="flex items-start gap-3 rounded-2xl border border-border/50 bg-background/70 p-4"
           >
             <span
@@ -175,7 +185,12 @@ export function ScoreReveal({
         ))}
       </motion.div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: delays.strengths, duration: 0.3, ease: "easeOut" }}
+        className="mt-8 grid gap-6 lg:grid-cols-2"
+      >
         <div className="rounded-2xl bg-green-500/10 p-5">
           <p className="text-sm font-medium text-green-800 dark:text-green-200">Strengths</p>
           <ul className="mt-3 space-y-2 text-sm text-green-900/80 dark:text-green-100/80">
@@ -199,9 +214,14 @@ export function ScoreReveal({
             ))}
           </ul>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="mt-8 rounded-[1.5rem] border border-green-500/20 bg-green-500/10 p-6">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: delays.payment, type: "spring", stiffness: 200, damping: 10 }}
+        className="mt-8 rounded-[1.5rem] border border-green-500/20 bg-green-500/10 p-6"
+      >
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-600 text-white">
             <CircleDollarSign className="h-6 w-6" />
@@ -220,9 +240,14 @@ export function ScoreReveal({
             Refunded to employer: {currency(Math.round(refundedAmount))}
           </p>
         ) : null}
-      </div>
+      </motion.div>
 
-      <div className="mt-8 rounded-[1.5rem] border border-border/50 bg-background/70 p-6">
+      <motion.div
+        initial={{ opacity: 0, x: 24 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: delays.pfi, duration: 0.35, ease: "easeOut" }}
+        className="mt-8 rounded-[1.5rem] border border-border/50 bg-background/70 p-6"
+      >
         <div className="flex items-center gap-3">
           <Sparkles className="h-4 w-4 text-green-600 dark:text-green-400" />
           <p className="text-sm font-medium uppercase tracking-[0.22em] text-green-600 dark:text-green-400">
@@ -253,7 +278,7 @@ export function ScoreReveal({
             {pfiUpdate.score_change}
           </span>
         </div>
-      </div>
+      </motion.div>
     </motion.section>
   );
 }

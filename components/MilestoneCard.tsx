@@ -91,6 +91,7 @@ export function MilestoneCard({
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.08, ease: "easeOut" }}
+      whileHover={{ y: -2, transition: { duration: 0.2 } }}
       className={cn(
         "rounded-2xl bg-background/80 p-5 shadow-sm shadow-slate-900/5",
         tone.border,
@@ -126,7 +127,7 @@ export function MilestoneCard({
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${Math.max(0, Math.min(100, milestone.completion_score))}%` }}
-            transition={{ duration: 0.8, ease: "easeOut", delay: index * 0.06 }}
+            transition={{ duration: 0.8, ease: "easeOut", delay: index * 0.1 }}
             className={cn("h-full rounded-full", tone.progress)}
           />
         </div>
@@ -159,13 +160,15 @@ export function MilestoneCard({
       </div>
 
       {!showFull && milestone.checklist.length > 4 ? (
-        <button
+        <motion.button
           type="button"
           onClick={() => setExpanded((current) => !current)}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           className="mt-4 text-sm font-medium text-green-700 transition hover:text-green-800 dark:text-green-300 dark:hover:text-green-200"
         >
           {expanded ? "Show less" : `Show ${milestone.checklist.length - 4} more`}
-        </button>
+        </motion.button>
       ) : null}
     </motion.article>
   );

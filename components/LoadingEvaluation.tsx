@@ -42,7 +42,8 @@ export function LoadingEvaluation({ className }: LoadingEvaluationProps) {
   }, [progressSpring, progressValue]);
 
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -2, transition: { duration: 0.2 } }}
       className={cn(
         "rounded-[2rem] border border-border/60 bg-white/85 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70",
         className,
@@ -66,7 +67,7 @@ export function LoadingEvaluation({ className }: LoadingEvaluationProps) {
         />
       </div>
       <p className="mt-2 text-sm text-muted-foreground">{progressNumber}% complete</p>
-    </div>
+    </motion.div>
   );
 }
 

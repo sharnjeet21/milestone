@@ -26,7 +26,7 @@ import {
   type KeyboardEvent,
 } from "react";
 
-import { useToast } from "@/components/ToastProvider";
+import { useToast } from "@/context/ToastContext";
 import { clarifyProject, createProject } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type {
@@ -289,10 +289,10 @@ export default function EmployerCreateProjectPage() {
         }
       } catch {
         if (requestIdRef.current === currentRequestId) {
-          toast({
-            title: "Clarity check unavailable",
-            description: "We couldn't refresh the live clarity meter right now.",
-          });
+          toast.info(
+            "Clarity check unavailable",
+            "We couldn't refresh the live clarity meter right now.",
+          );
         }
       } finally {
         if (requestIdRef.current === currentRequestId) {
@@ -339,11 +339,10 @@ export default function EmployerCreateProjectPage() {
         persistProject(mockProject);
         setCreatedProject(mockProject);
         setStage(3);
-        toast({
-          title: "Using local roadmap preview",
-          description:
-            "The API wasn't reachable, so we generated a preview roadmap locally.",
-        });
+        toast.info(
+          "Using local roadmap preview",
+          "The API wasn't reachable, so we generated a preview roadmap locally.",
+        );
       } finally {
         setIsGenerating(false);
       }
@@ -413,11 +412,10 @@ export default function EmployerCreateProjectPage() {
       setShowClarificationModal(false);
       setStage(2);
     } catch {
-      toast({
-        title: "Roadmap generation blocked",
-        description:
-          "We couldn't validate the brief. Please try again in a moment.",
-      });
+      toast.error(
+        "Roadmap generation blocked",
+        "We couldn't validate the brief. Please try again in a moment.",
+      );
     } finally {
       setIsClarifying(false);
     }
@@ -441,7 +439,10 @@ export default function EmployerCreateProjectPage() {
         <div className="mx-auto max-w-7xl">
           {stage === 1 ? (
             <div className="grid gap-8 lg:grid-cols-[1.45fr_0.95fr]">
-              <section className="rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+              <motion.section
+                whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                className="rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
+              >
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-green-500/20 bg-green-500/10 text-green-600 dark:text-green-400">
                     <Sparkles className="h-5 w-5" />
@@ -576,7 +577,7 @@ export default function EmployerCreateProjectPage() {
                               className="inline-flex items-center gap-2 rounded-full bg-green-500/10 px-3 py-1 text-xs font-medium text-green-700 dark:text-green-300"
                             >
                               {tag}
-                              <button
+                              <motion.button
                                 type="button"
                                 onClick={() =>
                                   setForm((current) => ({
@@ -586,10 +587,12 @@ export default function EmployerCreateProjectPage() {
                                     ),
                                   }))
                                 }
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
                                 className="text-green-700/70 transition hover:text-green-800 dark:text-green-300/70 dark:hover:text-green-200"
                               >
                                 <X className="h-3 w-3" />
-                              </button>
+                              </motion.button>
                             </span>
                           ))}
                         </div>
@@ -602,22 +605,26 @@ export default function EmployerCreateProjectPage() {
                             placeholder="Type a technology and press Enter"
                             className="h-10 w-full rounded-xl border border-border/40 bg-background px-3 text-sm outline-none transition focus:border-green-500/60"
                           />
-                          <button
+                          <motion.button
                             type="button"
                             onClick={handleAddTag}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
                             className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/50 text-foreground transition hover:border-green-500/50 hover:text-green-600"
                           >
                             <Plus className="h-4 w-4" />
-                          </button>
+                          </motion.button>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex justify-end border-t border-border/50 pt-6">
-                    <button
+                    <motion.button
                       type="submit"
                       disabled={!canGenerateRoadmap || isClarifying}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                       className="inline-flex h-12 items-center justify-center rounded-xl bg-green-600 px-6 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-600/50"
                     >
                       {isClarifying ? (
@@ -628,12 +635,15 @@ export default function EmployerCreateProjectPage() {
                       ) : (
                         "Generate AI Roadmap"
                       )}
-                    </button>
+                    </motion.button>
                   </div>
                 </form>
-              </section>
+              </motion.section>
 
-              <aside className="rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+              <motion.aside
+                whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                className="rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
+              >
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium uppercase tracking-[0.24em] text-green-600 dark:text-green-400">
@@ -734,14 +744,17 @@ export default function EmployerCreateProjectPage() {
                     )}
                   </ol>
                 </div>
-              </aside>
+              </motion.aside>
             </div>
           ) : null}
 
           {stage === 3 && createdProject ? (
             <div className="grid gap-8 lg:grid-cols-[1.45fr_0.95fr]">
               <section>
-                <div className="rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+                <motion.div
+                  whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                  className="rounded-[2rem] border border-border/60 bg-white/80 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
+                >
                   <p className="text-sm font-medium uppercase tracking-[0.24em] text-green-600 dark:text-green-400">
                     Stage 3
                   </p>
@@ -839,7 +852,7 @@ export default function EmployerCreateProjectPage() {
                           </div>
 
                           {milestone.checklist.length > 4 ? (
-                            <button
+                            <motion.button
                               type="button"
                               onClick={() =>
                                 setExpandedMilestones((current) => ({
@@ -847,6 +860,8 @@ export default function EmployerCreateProjectPage() {
                                   [milestone.id]: !expanded,
                                 }))
                               }
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
                               className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-green-700 transition hover:text-green-800 dark:text-green-300 dark:hover:text-green-200"
                             >
                               {expanded ? (
@@ -860,18 +875,19 @@ export default function EmployerCreateProjectPage() {
                                   <ChevronDown className="h-4 w-4" />
                                 </>
                               )}
-                            </button>
+                            </motion.button>
                           ) : null}
                         </div>
                       </motion.div>
                     );
                   })}
-                </div>
+                </motion.div>
               </section>
 
               <motion.aside
                 animate={isLockingFunds ? { scale: [1, 0.97, 1] } : { scale: 1 }}
                 transition={{ duration: 0.8, ease: "easeInOut" }}
+                whileHover={{ y: -2, transition: { duration: 0.2 } }}
                 className="self-start rounded-[2rem] border border-border/60 bg-white/85 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
               >
                 <p className="text-sm font-medium uppercase tracking-[0.24em] text-green-600 dark:text-green-400">
@@ -938,10 +954,12 @@ export default function EmployerCreateProjectPage() {
                       isLockingFunds ? "scale-x-100" : "scale-x-0",
                     )}
                   />
-                  <button
+                  <motion.button
                     type="button"
                     onClick={handleConfirmEscrow}
                     disabled={isLockingFunds}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="relative inline-flex h-14 w-full items-center justify-center gap-2 rounded-[1rem] bg-green-600 px-6 text-base font-medium text-white transition hover:bg-green-700 disabled:cursor-wait"
                   >
                     {isLockingFunds ? (
@@ -955,7 +973,7 @@ export default function EmployerCreateProjectPage() {
                         Confirm & Lock Funds in Escrow
                       </>
                     )}
-                  </button>
+                  </motion.button>
                 </div>
               </motion.aside>
             </div>
@@ -973,6 +991,8 @@ export default function EmployerCreateProjectPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               className="fixed inset-0 z-[70] bg-slate-950/50 backdrop-blur-sm"
             />
             <motion.div
@@ -990,13 +1010,15 @@ export default function EmployerCreateProjectPage() {
                     Your brief needs a little more specificity
                   </h2>
                 </div>
-                <button
+                <motion.button
                   type="button"
                   onClick={() => setShowClarificationModal(false)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/60"
                 >
                   <X className="h-4 w-4" />
-                </button>
+                </motion.button>
               </div>
 
               <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200">
@@ -1018,13 +1040,15 @@ export default function EmployerCreateProjectPage() {
               </ol>
 
               <div className="mt-8 flex justify-end">
-                <button
+                <motion.button
                   type="button"
                   onClick={() => setShowClarificationModal(false)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   className="inline-flex h-11 items-center justify-center rounded-xl bg-green-600 px-5 text-sm font-medium text-white transition hover:bg-green-700"
                 >
                   Update brief
-                </button>
+                </motion.button>
               </div>
             </motion.div>
           </>

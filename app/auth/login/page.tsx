@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as Tabs from "@radix-ui/react-tabs";
+import { motion } from "framer-motion";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { cn } from "@/lib/utils";
@@ -172,12 +173,14 @@ export default function LoginPage() {
                 />
               </div>
 
-              <button
+              <motion.button
                 type="submit"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 className="h-10 w-full rounded-lg bg-green-600 text-sm font-medium text-white transition-colors hover:bg-green-700"
               >
                 Sign In
-              </button>
+              </motion.button>
             </form>
           </Tabs.Content>
 
@@ -246,12 +249,14 @@ export default function LoginPage() {
                 />
               </div>
 
-              <button
+              <motion.button
                 type="submit"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 className="h-10 w-full rounded-lg bg-green-600 text-sm font-medium text-white transition-colors hover:bg-green-700"
               >
                 Create Account
-              </button>
+              </motion.button>
             </form>
           </Tabs.Content>
         </Tabs.Root>

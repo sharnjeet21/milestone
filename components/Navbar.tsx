@@ -175,15 +175,17 @@ export function Navbar() {
               <span>{isConnected ? "Live" : "Offline"}</span>
             </div>
 
-            <button
+            <motion.button
               type="button"
               aria-expanded={menuOpen}
               aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
               onClick={() => setMenuOpen((current) => !current)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-background text-foreground transition-colors hover:bg-foreground/5"
             >
               {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-            </button>
+            </motion.button>
           </div>
         </div>
       </header>
@@ -198,6 +200,8 @@ export function Navbar() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-sm md:hidden"
             />
             <motion.aside
@@ -212,14 +216,16 @@ export function Navbar() {
                   <span className="h-2 w-2 rounded-full bg-green-500" />
                   <span className="font-medium">MilestoneAI</span>
                 </div>
-                <button
+                <motion.button
                   type="button"
                   aria-label="Close navigation menu"
                   onClick={() => setMenuOpen(false)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/60 text-foreground"
                 >
                   <X className="h-4 w-4" />
-                </button>
+                </motion.button>
               </div>
 
               <nav className="mt-10 flex flex-col gap-2">
