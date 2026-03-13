@@ -7,26 +7,6 @@ import { Zap, DollarSign, TrendingUp, Shield, ArrowRight, Sparkles } from 'lucid
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      {/* Navigation */}
-      <nav className="sticky top-0 z-50 border-b border-slate-700/50 bg-slate-900/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-8 h-8 text-blue-400" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-              MilestoneAI
-            </span>
-          </div>
-          <div className="flex gap-3">
-            <Link href="/employer/create" className="btn-primary text-sm">
-              Post Project
-            </Link>
-            <Link href="/freelancer" className="btn-secondary text-sm">
-              Find Work
-            </Link>
-          </div>
-        </div>
-      </nav>
-
       {/* Hero Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
         <div className="text-center mb-20">
@@ -110,13 +90,26 @@ export default function Home() {
             </div>
           </Link>
 
-          <Link href="/escrow" className="block">
+          <Link href="/payment" className="block">
             <div className="card-hover group h-full">
               <div className="flex items-start justify-between mb-4">
-                <h3 className="text-xl font-semibold text-white">Escrow Vault</h3>
+                <h3 className="text-xl font-semibold text-white">Payment Demo</h3>
                 <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-green-400 group-hover:translate-x-1 transition-all" />
               </div>
-              <p className="text-slate-400">View payment status, transaction history, and manage fund releases securely</p>
+              <p className="text-slate-400">See the complete escrow payment flow with AI evaluation and automatic releases</p>
+            </div>
+          </Link>
+        </div>
+
+        {/* Additional Link */}
+        <div className="mt-6">
+          <Link href="/escrow" className="block">
+            <div className="card-hover group">
+              <div className="flex items-start justify-between mb-4">
+                <h3 className="text-xl font-semibold text-white">Smart Escrow Vault</h3>
+                <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
+              </div>
+              <p className="text-slate-400">View vault status, risk assessment, and payment optimization with AI-powered insights</p>
             </div>
           </Link>
         </div>

@@ -12,6 +12,7 @@ from agents.pfi_agent import PFIAgent
 from agents.escrow_agent import SmartEscrowAgent
 from models.project import Milestone, MilestoneStatus
 from database.firebase import firebase_db
+from database.seed import load_sample_data
 
 app = FastAPI(
     title="MilestoneAI API",
@@ -444,4 +445,10 @@ async def detect_fraud_signals(project_id: str, milestone_id: str, freelancer_id
 
 if __name__ == "__main__":
     import uvicorn
+    
+    # Load sample data for demo
+    print("🔄 Loading sample data...")
+    load_sample_data(projects_db, freelancers_db, get_payment_agent())
+    
+    print("🚀 Starting MilestoneAI backend...")
     uvicorn.run("main:app", host="0.0.0.0", port=9001, reload=True)

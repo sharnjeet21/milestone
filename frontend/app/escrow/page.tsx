@@ -124,19 +124,10 @@ export default function EscrowVault() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      {/* Header */}
-      <div className="border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-xl sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="p-2 hover:bg-slate-800 rounded-lg transition">
-              <ArrowLeft className="w-5 h-5 text-slate-400" />
-            </Link>
-            <div>
-              <h1 className="section-title text-3xl">Smart Escrow Vault</h1>
-              <p className="text-slate-400 text-sm mt-1">AI-powered payment management & risk assessment</p>
-            </div>
-          </div>
-        </div>
+      {/* Page Header */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="section-title text-3xl mb-2">Smart Escrow Vault</h1>
+        <p className="text-slate-400">AI-powered payment management & risk assessment</p>
       </div>
 
       {/* Content */}
