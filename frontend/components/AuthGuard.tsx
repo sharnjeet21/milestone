@@ -135,13 +135,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               className="fixed inset-0 z-[80] bg-slate-950/50 backdrop-blur-sm"
             />
 
-            {/* Modal */}
+            {/* Modal wrapper — centers in viewport regardless of scroll */}
+            <div className="fixed inset-0 z-[81] flex items-center justify-center p-4 pointer-events-none">
             <motion.div
               initial={{ opacity: 0, y: 28, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.97 }}
               transition={{ duration: 0.22, ease: "easeOut" }}
-              className="fixed left-1/2 top-1/2 z-[81] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto max-h-[90svh] rounded-[2rem] border border-border/60 bg-background p-8 shadow-2xl shadow-slate-950/20"
+              className="pointer-events-auto w-full max-w-md overflow-y-auto max-h-[90svh] rounded-[2rem] border border-border/60 bg-background p-8 shadow-2xl shadow-slate-950/20"
             >
               {/* Header */}
               <div className="flex items-start justify-between gap-4">
@@ -279,6 +280,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                 </button>
               </p>
             </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
