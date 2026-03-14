@@ -282,7 +282,7 @@ Protections like illness extensions, scope creep shields, and unfair penalty blo
 
 ## 👥 Team
 
-Built with ❤️ at **IIT Roorkee Cognizance Hackathon**
+Built by Team Velocity5 at **IIT Roorkee Cognizance Hackathon**
 
 ---
 
