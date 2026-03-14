@@ -5,6 +5,7 @@ import { Github, Loader2, LogIn, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { onAuthChange, signInWithEmail, signInWithGoogle, signInWithGitHub, signUpWithEmail } from "@/lib/auth";
 import type { User } from "firebase/auth";
@@ -124,26 +125,26 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         {children}
       </div>
 
-      <AnimatePresence>
-        {showModal && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[80] bg-slate-950/50 backdrop-blur-sm"
-            />
-
-            {/* Modal — fixed overlay centers the card */}
-            <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 81, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
-            <motion.div
-              initial={{ opacity: 0, y: 28, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 16, scale: 0.97 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
-              className="w-full max-w-md overflow-y-auto max-h-[90svh] rounded-[2rem] border border-border/60 bg-background p-8 shadow-2xl shadow-slate-950/20"
-            >
+      {typeof window !== "undefined" && createPortal(
+        <AnimatePresence>
+          {showModal && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(2,6,23,0.5)", backdropFilter: "blur(4px)" }}
+              />
+              {/* Modal centered in viewport */}
+              <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+                <motion.div
+                  initial={{ opacity: 0, y: 24, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 12, scale: 0.97 }}
+                  transition={{ duration: 0.22, ease: "easeOut" }}
+                  className="w-full max-w-md overflow-y-auto max-h-[90svh] rounded-[2rem] border border-border/60 bg-background p-8 shadow-2xl shadow-slate-950/20"
+                >
               {/* Header */}
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -279,11 +280,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                   {mode === "login" ? "Sign up" : "Sign in"}
                 </button>
               </p>
-            </motion.div>
-            </div>
-          </>
-        )}
-      </AnimatePresence>
+                </motion.div>
+              </div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 }
