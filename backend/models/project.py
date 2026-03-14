@@ -40,6 +40,9 @@ class Milestone(BaseModel):
     payment_amount: float
     status: MilestoneStatus = MilestoneStatus.PENDING
     completion_score: float = 0.0
+    overdue: bool = False
+    penalty_amount: float = 0.0
+    frozen: bool = False
     feedback: Optional[str] = None
     submitted_work: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)

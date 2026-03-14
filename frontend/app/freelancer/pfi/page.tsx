@@ -15,10 +15,10 @@ import {
 import { useCallback, useEffect, useState } from "react";
 
 import { useToast } from "@/context/ToastContext";
-import { getFreelancerPFI } from "@/lib/api";
+import { getFreelancerPFI, getPFIHistory } from "@/lib/api";
 import { useAPI } from "@/lib/useAPI";
 import { cn } from "@/lib/utils";
-import type { FreelancerProfile, PFIUpdate } from "@/lib/types";
+import type { FreelancerProfile, PFIHistoryEntry, PFIUpdate } from "@/lib/types";
 
 type StoredUser = {
   id: string;
@@ -296,6 +296,7 @@ export default function FreelancerPfiPage() {
   const [pfi, setPfi] = useState<PfiViewModel | null>(null);
   const [localFallback, setLocalFallback] = useState<PfiViewModel | null>(null);
   const [history, setHistory] = useState<PaymentHistoryItem[]>([]);
+  const [pfiHistory, setPfiHistory] = useState<PFIHistoryEntry[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const { error: pfiError, execute: executePfi } =
     useAPI<PFIUpdate | FreelancerProfile>();
@@ -329,14 +330,22 @@ export default function FreelancerPfiPage() {
 
       if (response) {
         setPfi(normalizePfiResponse(response, localPfi));
-        return;
+      } else {
+        setPfi(localPfi);
+        toast.info(
+          "Using local PFI snapshot",
+          "Live PFI data was unavailable, so a local summary was loaded.",
+        );
       }
 
-      setPfi(localPfi);
-      toast.info(
-        "Using local PFI snapshot",
-        "Live PFI data was unavailable, so a local summary was loaded.",
-      );
+      if (currentUser?.id) {
+        try {
+          const historyData = await getPFIHistory(currentUser.id);
+          if (!cancelled) setPfiHistory(historyData || []);
+        } catch {
+          // silently ignore
+        }
+      }
     };
 
     void loadData();
@@ -565,7 +574,7 @@ export default function FreelancerPfiPage() {
         </motion.section>
 
         <Tabs.Root defaultValue="overview">
-          <Tabs.List className="grid w-full max-w-md grid-cols-2 rounded-2xl border border-border/50 bg-foreground/[0.03] p-1">
+          <Tabs.List className="grid w-full max-w-md grid-cols-3 rounded-2xl border border-border/50 bg-foreground/[0.03] p-1">
             <Tabs.Trigger
               value="overview"
               className="rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground transition data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
@@ -577,6 +586,12 @@ export default function FreelancerPfiPage() {
               className="rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground transition data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
             >
               Payment History
+            </Tabs.Trigger>
+            <Tabs.Trigger
+              value="score-history"
+              className="rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground transition data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+            >
+              Score History
             </Tabs.Trigger>
           </Tabs.List>
 
@@ -834,6 +849,67 @@ export default function FreelancerPfiPage() {
                 </table>
               </div>
             </motion.div>
+          </Tabs.Content>
+
+          <Tabs.Content value="score-history" className="mt-8 space-y-4">
+            {pfiHistory.length ? (
+              pfiHistory.map((entry, index) => {
+                const date = new Date(entry.recorded_at).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                });
+                const isPositive = entry.score_change >= 0;
+
+                return (
+                  <div
+                    key={index}
+                    className="rounded-xl border border-border/60 bg-white p-5 shadow-sm shadow-slate-900/5 dark:bg-zinc-900"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-sm text-muted-foreground">{date}</p>
+                      <span
+                        className={cn(
+                          "text-sm font-semibold",
+                          isPositive ? "text-green-600 dark:text-green-400" : "text-red-500",
+                        )}
+                      >
+                        {isPositive ? "+" : ""}
+                        {entry.score_change}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-2 text-lg font-medium text-foreground">
+                      <span>{entry.previous_score}</span>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                      <span>{entry.new_score}</span>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {(
+                        [
+                          { label: "Quality", value: entry.component_breakdown.quality },
+                          { label: "Deadline", value: entry.component_breakdown.deadline },
+                          { label: "Revision Rate", value: entry.component_breakdown.revision_rate },
+                          { label: "Completion", value: entry.component_breakdown.completion },
+                        ] as const
+                      ).map((comp) => (
+                        <div key={comp.label} className="rounded-lg bg-foreground/5 px-3 py-2">
+                          <p className="text-xs text-muted-foreground">{comp.label}</p>
+                          <p className="mt-1 text-sm font-medium text-foreground">{comp.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="rounded-xl border border-border/60 bg-white p-12 text-center shadow-sm dark:bg-zinc-900">
+                <p className="text-sm text-muted-foreground">
+                  No PFI history yet. Complete a milestone to see your score history.
+                </p>
+              </div>
+            )}
           </Tabs.Content>
         </Tabs.Root>
       </div>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
 
+import { AuthGuard } from "@/components/AuthGuard";
 import { Navbar } from "@/components/Navbar";
 import PageTransition from "@/components/PageTransition";
 import { ToastProvider } from "@/context/ToastContext";
@@ -42,7 +43,9 @@ export default function RootLayout({
           <div className="flex min-h-screen flex-col bg-background text-foreground">
             <Navbar />
             <div className="flex-1">
-              <PageTransition>{children}</PageTransition>
+              <AuthGuard>
+                <PageTransition>{children}</PageTransition>
+              </AuthGuard>
             </div>
           </div>
         </ToastProvider>

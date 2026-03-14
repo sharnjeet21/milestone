@@ -8,6 +8,11 @@ from datetime import datetime
 
 import paypal_service
 
+from routers.freelancers import router as freelancers_router
+from routers.jobs import router as jobs_router
+from routers.escrow import router as escrow_router
+from routers.disputes import router as disputes_router
+from routers.contracts import router as contracts_router
 from agents.nlp_agent import NLPAgent
 from agents.quality_agent import QualityAgent
 from agents.payment_agent import PaymentAgent
@@ -30,6 +35,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(freelancers_router)
+app.include_router(jobs_router)
+app.include_router(escrow_router)
+app.include_router(disputes_router)
+app.include_router(contracts_router)
 
 # Lazy-load agents (instantiated on first use)
 _nlp_agent = None
@@ -296,8 +307,31 @@ async def submit_milestone(request: SubmitWorkRequest):
             **freelancer,
             "pfi_score": pfi_update["new_score"],
             "completed_milestones": freelancer.get("completed_milestones", 0) + 1,
+            "restricted": pfi_update["new_score"] < 400,
+            "pfi_tier": pfi_update["tier"],
         }
         upsert_freelancer_in_db(request.freelancer_id, updated_freelancer)
+
+        # Write PFI history entry
+        try:
+            pfi_history_entry = {
+                "id": str(uuid.uuid4()),
+                "project_id": request.project_id,
+                "milestone_id": request.milestone_id,
+                "previous_score": pfi_update["previous_score"],
+                "new_score": pfi_update["new_score"],
+                "score_change": pfi_update["score_change"],
+                "component_breakdown": {
+                    "quality": pfi_update["component_breakdown"]["quality"]["score"],
+                    "deadline": pfi_update["component_breakdown"]["deadline"]["score"],
+                    "revision_rate": pfi_update["component_breakdown"]["revision_rate"]["score"],
+                    "completion": pfi_update["component_breakdown"]["completion"]["score"],
+                },
+                "recorded_at": datetime.now().isoformat(),
+            }
+            firebase_db.add_pfi_history_entry(request.freelancer_id, pfi_history_entry)
+        except Exception as e:
+            print(f"Failed to write PFI history: {e}")
 
         for i, m in enumerate(project["milestones"]):
             if m["id"] == request.milestone_id:
@@ -635,10 +669,6 @@ async def paypal_webhook(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    
-    # Load sample data for demo
-    print("🔄 Loading sample data...")
-    load_sample_data(projects_db, freelancers_db, get_payment_agent())
-    
+    port = int(os.getenv("PORT", 9001))
     print("🚀 Starting MilestoneAI backend...")
-    uvicorn.run("main:app", host="0.0.0.0", port=9001, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=port)

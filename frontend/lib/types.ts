@@ -108,3 +108,109 @@ export interface CreateProjectPayload {
   deliverable_type: DeliverableType;
   tech_stack: string[];
 }
+
+export interface Job {
+  id: string;
+  employer_id: string;
+  title: string;
+  description: string;
+  required_skills: string[];
+  budget_min: number;
+  budget_max: number;
+  timeline_days: number;
+  status: 'OPEN' | 'FILLED' | 'CLOSED';
+  created_at: string;
+}
+
+export interface Application {
+  id: string;
+  job_id: string;
+  freelancer_id: string;
+  cover_note: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  pfi_score_at_apply: number;
+  created_at: string;
+}
+
+export interface VaultTransaction {
+  type: 'DEPOSIT' | 'MILESTONE_PAYMENT' | 'PENALTY' | 'REFUND' | 'SUCCESS_FEE';
+  amount: number;
+  milestone_id?: string;
+  freelancer_id?: string;
+  timestamp: string;
+  paypal_payout_id?: string;
+}
+
+export interface Vault {
+  vault_id: string;
+  project_id: string;
+  employer_id: string;
+  total_amount: number;
+  locked_amount: number;
+  released_amount: number;
+  refunded_amount: number;
+  status: 'UNFUNDED' | 'FUNDED' | 'CLOSED';
+  paypal_capture_id?: string;
+  funded_at?: string;
+  transactions: VaultTransaction[];
+  created_at: string;
+}
+
+export interface Signature {
+  user_id: string;
+  role: 'employer' | 'freelancer';
+  signed_at: string;
+  ip_address?: string;
+}
+
+export interface Contract {
+  id: string;
+  project_id: string;
+  employer_id: string;
+  freelancer_id: string;
+  status: 'DRAFT' | 'EMPLOYER_SIGNED' | 'FREELANCER_SIGNED' | 'EXECUTED';
+  party_names: { employer: string; freelancer: string };
+  project_title: string;
+  scope_of_work: string;
+  plain_text: string;
+  signatures: Signature[];
+  executed_at?: string;
+  created_at: string;
+}
+
+export interface Dispute {
+  id: string;
+  project_id: string;
+  milestone_id: string;
+  raised_by: string;
+  reason: string;
+  evidence_url?: string;
+  status: 'OPEN' | 'RESOLVED' | 'DISMISSED';
+  resolution?: 'EMPLOYER_WINS' | 'FREELANCER_WINS';
+  resolved_at?: string;
+  created_at: string;
+}
+
+export interface Notification {
+  id: string;
+  event_type: string;
+  message: string;
+  read: boolean;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface PFIHistoryEntry {
+  project_id: string;
+  milestone_id: string;
+  previous_score: number;
+  new_score: number;
+  score_change: number;
+  component_breakdown: {
+    quality: number;
+    deadline: number;
+    revision_rate: number;
+    completion: number;
+  };
+  recorded_at: string;
+}

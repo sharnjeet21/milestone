@@ -20,7 +20,7 @@ export default function EscrowVault() {
     if (!vaultId) return;
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:9001/api/escrow/${vaultId}`);
+      const response = await fetch(`http://localhost:9001/api/escrow/vault/${vaultId}`);
       if (response.ok) {
         setVaultData(await response.json());
       } else {

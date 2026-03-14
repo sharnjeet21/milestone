@@ -2,8 +2,10 @@ import axios from "axios";
 
 import { fsGetProject, fsGetProjects, fsGetFreelancer } from "@/lib/firestore";
 import type {
+  Application,
   CreateProjectPayload,
   FreelancerProfile,
+  Job,
   PFIUpdate,
   Project,
   ProjectClarification,
@@ -113,6 +115,30 @@ export async function getFreelancerPFI(
 
 export default backendApi;
 
+export async function getFreelancers(): Promise<FreelancerProfile[]> {
+  const response = await backendApi.get<FreelancerProfile[]>("/freelancers");
+  return response.data;
+}
+
+export async function searchFreelancers(query: string): Promise<FreelancerProfile[]> {
+  const response = await backendApi.get<FreelancerProfile[]>(
+    `/freelancers/search?q=${encodeURIComponent(query)}`,
+  );
+  return response.data;
+}
+
+export async function getFreelancerProfile(freelancerId: string): Promise<FreelancerProfile> {
+  const response = await backendApi.get<FreelancerProfile>(
+    `/freelancers/${freelancerId}/profile`,
+  );
+  return response.data;
+}
+
+export async function getPFIHistory(freelancerId: string) {
+  const response = await backendApi.get(`/freelancers/${freelancerId}/pfi/history`);
+  return response.data;
+}
+
 export async function assessMilestoneRisk(projectId: string, milestoneId: string, freelancerId: string) {
   const response = await backendApi.post('/escrow/assess-risk', { project_id: projectId, milestone_id: milestoneId, freelancer_id: freelancerId });
   return response.data;
@@ -120,5 +146,38 @@ export async function assessMilestoneRisk(projectId: string, milestoneId: string
 
 export async function optimizePaymentSchedule(projectId: string, freelancerId: string) {
   const response = await backendApi.post('/escrow/optimize-schedule', { project_id: projectId, freelancer_id: freelancerId });
+  return response.data;
+}
+
+export async function getJobs(): Promise<Job[]> {
+  const response = await backendApi.get<Job[]>('/jobs');
+  return response.data;
+}
+
+export async function createJob(data: {
+  employer_id: string;
+  title: string;
+  description: string;
+  required_skills: string[];
+  budget_min: number;
+  budget_max: number;
+  timeline_days: number;
+}): Promise<Job> {
+  const response = await backendApi.post<Job>('/jobs', data);
+  return response.data;
+}
+
+export async function applyToJob(jobId: string, data: { freelancer_id: string; cover_note: string }): Promise<Application> {
+  const response = await backendApi.post<Application>(`/jobs/${jobId}/apply`, data);
+  return response.data;
+}
+
+export async function getJobApplications(jobId: string): Promise<Application[]> {
+  const response = await backendApi.get<Application[]>(`/jobs/${jobId}/applications`);
+  return response.data;
+}
+
+export async function updateApplication(jobId: string, applicationId: string, status: 'ACCEPTED' | 'REJECTED') {
+  const response = await backendApi.patch(`/jobs/${jobId}/applications/${applicationId}`, { status });
   return response.data;
 }

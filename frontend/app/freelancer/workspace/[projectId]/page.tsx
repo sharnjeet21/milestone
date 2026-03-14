@@ -26,8 +26,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useToast } from "@/context/ToastContext";
 import { getProject, submitMilestone } from "@/lib/api";
+import { auth } from "@/lib/firebase";
 import { useAPI } from "@/lib/useAPI";
 import { cn } from "@/lib/utils";
+import { recordEarning } from "@/app/payment/page";
 import type {
   ChecklistEvaluation,
   DeliverableType,
@@ -737,6 +739,27 @@ export default function FreelancerWorkspacePage() {
         result: normalizedResult,
         submittedAt: new Date().toISOString(),
       });
+
+      // Record earning in Firestore for the logged-in user
+      if (normalizedResult.payout_amount > 0) {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          const now = new Date();
+          const weekStart = new Date(now);
+          weekStart.setDate(now.getDate() - now.getDay());
+          const weekEnd = new Date(weekStart);
+          weekEnd.setDate(weekStart.getDate() + 6);
+          const fmt = (d: Date) =>
+            d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+          await recordEarning(currentUser.uid, {
+            period: `${fmt(weekStart)} – ${fmt(weekEnd)}`,
+            tasks: 1,
+            payout: normalizedResult.payout_amount,
+            account: "PayPal",
+            status: "Pending",
+          });
+        }
+      }
 
       setProject(nextProject);
       setEvaluationResult(normalizedResult);
