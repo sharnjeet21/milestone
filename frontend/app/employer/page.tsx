@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { api } from '@/lib/api';
+import { getProjects } from '@/lib/api';
 import { Project } from '@/lib/types';
 import { ArrowLeft, Plus, Briefcase, Calendar, DollarSign, CheckCircle2 } from 'lucide-react';
 
@@ -13,7 +13,7 @@ export default function EmployerDashboard() {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const data = await api.getProjects();
+        const data = await getProjects();
         setProjects(data);
       } catch (error) {
         console.error('Failed to fetch projects:', error);

@@ -18,8 +18,6 @@ import {
   getDocs,
   orderBy,
   query,
-  setDoc,
-  serverTimestamp,
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
@@ -79,17 +77,7 @@ async function fetchUserMeta(uid: string) {
   return snap.exists() ? snap.data() : null;
 }
 
-// Called externally (e.g. from milestone payment flow) to record a payout
-export async function recordEarning(
-  uid: string,
-  entry: Omit<EarningEntry, "id" | "createdAt">,
-) {
-  const id = `earn_${Date.now()}`;
-  await setDoc(doc(db, "users", uid, "earnings", id), {
-    ...entry,
-    createdAt: serverTimestamp(),
-  });
-}
+// recordEarning is exported from @/lib/earnings
 
 type Tab = "earnings" | "payouts";
 

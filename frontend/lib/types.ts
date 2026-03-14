@@ -37,6 +37,9 @@ export interface Project {
   title: string;
   description: string;
   total_budget: number;
+  timeline_days: number;
+  deliverable_type: DeliverableType | string;
+  tech_stack: string[];
   milestones: Milestone[];
   status: string;
   vault_id: string;
