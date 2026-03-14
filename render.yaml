@@ -33,8 +33,6 @@ services:
     startCommand: HOSTNAME=0.0.0.0 node .next/standalone/server.js
     plan: free
     envVars:
-      - key: PORT
-        value: "10000"
       - key: HOSTNAME
         value: "0.0.0.0"
       - key: NEXT_PUBLIC_FIREBASE_API_KEY
