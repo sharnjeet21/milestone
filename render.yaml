@@ -30,11 +30,9 @@ services:
     runtime: node
     rootDir: frontend
     buildCommand: npm install && npm run build
-    startCommand: HOSTNAME=0.0.0.0 node .next/standalone/server.js
+    startCommand: npm run start
     plan: free
     envVars:
-      - key: HOSTNAME
-        value: "0.0.0.0"
       - key: NEXT_PUBLIC_FIREBASE_API_KEY
         sync: false
       - key: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
