@@ -94,6 +94,9 @@ function buildFallbackProject(projectId: string): Project {
     description:
       "A fallback project preview used when the backend project record is unavailable.",
     total_budget: 12000,
+    timeline_days: 22,
+    deliverable_type: "code",
+    tech_stack: [],
     milestones: [
       {
         id: `${projectId}_1`,

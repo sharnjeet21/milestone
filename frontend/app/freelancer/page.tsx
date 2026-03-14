@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { api } from '@/lib/api';
+import { getProjects } from '@/lib/api';
 import { Project } from '@/lib/types';
 import { ArrowLeft, Zap, Code2, Palette, Database } from 'lucide-react';
 
@@ -13,7 +13,7 @@ export default function FreelancerPortal() {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const data = await api.getProjects();
+        const data = await getProjects();
         setProjects((data as Project[]).filter((p: Project) => p.status === 'ACTIVE'));
       } catch (error) {
         console.error('Failed to fetch projects:', error);
