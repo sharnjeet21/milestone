@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, Lock, DollarSign, TrendingUp, Search, ArrowUpRight, ArrowDownLeft, AlertTriangle, Shield, Zap } from 'lucide-react';
-import { api } from '@/lib/api';
+import { motion } from 'framer-motion';
+import { Lock, DollarSign, TrendingUp, Search, ArrowUpRight, ArrowDownLeft, AlertTriangle, Shield, Zap } from 'lucide-react';
+import { assessMilestoneRisk, optimizePaymentSchedule } from '@/lib/api';
 
 export default function EscrowVault() {
   const [vaultId, setVaultId] = useState('');
@@ -18,19 +18,16 @@ export default function EscrowVault() {
   const handleSearchVault = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!vaultId) return;
-
     setLoading(true);
     try {
       const response = await fetch(`http://localhost:9001/api/escrow/${vaultId}`);
       if (response.ok) {
-        const data = await response.json();
-        setVaultData(data);
+        setVaultData(await response.json());
       } else {
         alert('Vault not found');
         setVaultData(null);
       }
-    } catch (error) {
-      console.error('Failed to fetch vault:', error);
+    } catch {
       alert('Failed to fetch vault');
     } finally {
       setLoading(false);
@@ -39,245 +36,145 @@ export default function EscrowVault() {
 
   const handleAssessRisk = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!projectId || !freelancerId) {
-      alert('Please enter Project ID and Freelancer ID');
-      return;
-    }
-
+    if (!projectId || !freelancerId) { alert('Please enter Project ID and Freelancer ID'); return; }
     setLoading(true);
     try {
-      const data = await api.assessMilestoneRisk(projectId, 'milestone-1', freelancerId);
+      const data = await assessMilestoneRisk(projectId, 'milestone-1', freelancerId);
       setRiskAssessment(data.risk_assessment);
       setActiveTab('risk');
-    } catch (error) {
-      console.error('Failed to assess risk:', error);
-      alert('Failed to assess risk');
-    } finally {
-      setLoading(false);
-    }
+    } catch { alert('Failed to assess risk'); }
+    finally { setLoading(false); }
   };
 
   const handleOptimizeSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!projectId || !freelancerId) {
-      alert('Please enter Project ID and Freelancer ID');
-      return;
-    }
-
+    if (!projectId || !freelancerId) { alert('Please enter Project ID and Freelancer ID'); return; }
     setLoading(true);
     try {
-      const data = await api.optimizePaymentSchedule(projectId, freelancerId);
+      const data = await optimizePaymentSchedule(projectId, freelancerId);
       setPaymentSchedule(data.optimization);
       setActiveTab('schedule');
-    } catch (error) {
-      console.error('Failed to optimize schedule:', error);
-      alert('Failed to optimize schedule');
-    } finally {
-      setLoading(false);
-    }
+    } catch { alert('Failed to optimize schedule'); }
+    finally { setLoading(false); }
   };
 
-  const getRiskColor = (level: string) => {
-    switch (level) {
-      case 'LOW':
-        return 'text-green-400';
-      case 'MEDIUM':
-        return 'text-yellow-400';
-      case 'HIGH':
-        return 'text-orange-400';
-      case 'CRITICAL':
-        return 'text-red-400';
-      default:
-        return 'text-slate-400';
-    }
+  const riskColor = (level: string) => ({ LOW: 'text-green-600', MEDIUM: 'text-yellow-600', HIGH: 'text-orange-600', CRITICAL: 'text-red-600' }[level] ?? 'text-muted-foreground');
+  const riskBg = (level: string) => ({ LOW: 'border-green-500/30 bg-green-500/10', MEDIUM: 'border-yellow-500/30 bg-yellow-500/10', HIGH: 'border-orange-500/30 bg-orange-500/10', CRITICAL: 'border-red-500/30 bg-red-500/10' }[level] ?? 'border-border/60 bg-white/80');
+
+  const txIcon = (type: string) => {
+    if (type === 'DEPOSIT') return <ArrowDownLeft className="w-4 h-4 text-green-600" />;
+    if (type === 'MILESTONE_PAYMENT') return <ArrowUpRight className="w-4 h-4 text-blue-600" />;
+    if (type === 'REFUND') return <ArrowDownLeft className="w-4 h-4 text-red-600" />;
+    if (type === 'SUCCESS_FEE') return <TrendingUp className="w-4 h-4 text-purple-600" />;
+    return <DollarSign className="w-4 h-4 text-muted-foreground" />;
   };
 
-  const getRiskBgColor = (level: string) => {
-    switch (level) {
-      case 'LOW':
-        return 'bg-green-500/10 border-green-500/30';
-      case 'MEDIUM':
-        return 'bg-yellow-500/10 border-yellow-500/30';
-      case 'HIGH':
-        return 'bg-orange-500/10 border-orange-500/30';
-      case 'CRITICAL':
-        return 'bg-red-500/10 border-red-500/30';
-      default:
-        return 'bg-slate-500/10 border-slate-500/30';
-    }
-  };
+  const tabs = [
+    { id: 'vault', label: 'Vault Status', icon: Lock },
+    { id: 'risk', label: 'Risk Assessment', icon: AlertTriangle },
+    { id: 'schedule', label: 'Payment Schedule', icon: Zap },
+  ] as const;
 
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case 'DEPOSIT':
-        return <ArrowDownLeft className="w-4 h-4 text-green-400" />;
-      case 'MILESTONE_PAYMENT':
-        return <ArrowUpRight className="w-4 h-4 text-blue-400" />;
-      case 'REFUND':
-        return <ArrowDownLeft className="w-4 h-4 text-red-400" />;
-      case 'SUCCESS_FEE':
-        return <TrendingUp className="w-4 h-4 text-purple-400" />;
-      default:
-        return <DollarSign className="w-4 h-4 text-slate-400" />;
-    }
-  };
+  const inputCls = "h-11 w-full rounded-xl border border-border/50 bg-background px-4 text-sm outline-none transition focus:border-green-500/60";
+  const btnCls = "inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-green-600 px-6 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      {/* Page Header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="section-title text-3xl mb-2">Smart Escrow Vault</h1>
-        <p className="text-slate-400">AI-powered payment management & risk assessment</p>
-      </div>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.06),_transparent_28%),linear-gradient(180deg,_rgba(255,255,255,0.96),_rgba(240,253,250,0.86)_52%,_rgba(255,255,255,1))]">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Header */}
+        <div className="mb-8">
+          <p className="text-sm font-medium uppercase tracking-[0.24em] text-green-600">Escrow</p>
+          <h1 className="mt-1 text-3xl font-medium tracking-tight text-foreground">Smart Escrow Vault</h1>
+          <p className="text-muted-foreground mt-1">AI-powered payment management & risk assessment</p>
+        </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Tabs */}
-        <div className="flex gap-2 mb-8 border-b border-slate-700/50">
-          <button
-            onClick={() => setActiveTab('vault')}
-            className={`px-4 py-3 font-semibold transition ${
-              activeTab === 'vault'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-slate-400 hover:text-slate-300'
-            }`}
-          >
-            <Lock className="w-4 h-4 inline mr-2" />
-            Vault Status
-          </button>
-          <button
-            onClick={() => setActiveTab('risk')}
-            className={`px-4 py-3 font-semibold transition ${
-              activeTab === 'risk'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-slate-400 hover:text-slate-300'
-            }`}
-          >
-            <AlertTriangle className="w-4 h-4 inline mr-2" />
-            Risk Assessment
-          </button>
-          <button
-            onClick={() => setActiveTab('schedule')}
-            className={`px-4 py-3 font-semibold transition ${
-              activeTab === 'schedule'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-slate-400 hover:text-slate-300'
-            }`}
-          >
-            <Zap className="w-4 h-4 inline mr-2" />
-            Payment Schedule
-          </button>
+        <div className="flex gap-1 mb-8 rounded-2xl border border-border/60 bg-white/80 backdrop-blur p-1 w-fit">
+          {tabs.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition ${
+                activeTab === id
+                  ? 'bg-green-600 text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* Vault Tab */}
         {activeTab === 'vault' && (
           <div className="space-y-6">
-            <form onSubmit={handleSearchVault} className="mb-8">
+            <form onSubmit={handleSearchVault}>
               <div className="flex gap-2">
                 <div className="flex-1 relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="text"
                     value={vaultId}
                     onChange={(e) => setVaultId(e.target.value)}
                     placeholder="Enter Vault ID..."
-                    className="input-field pl-12"
+                    className="h-11 w-full rounded-xl border border-border/50 bg-background pl-10 pr-4 text-sm outline-none transition focus:border-green-500/60"
                   />
                 </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                <button type="submit" disabled={loading} className={btnCls}>
                   {loading ? 'Searching...' : 'Search'}
                 </button>
               </div>
             </form>
 
-            {vaultData && (
+            {vaultData ? (
               <div className="space-y-6">
-                {/* Status Cards */}
-                <div className="grid md:grid-cols-4 gap-4">
-                  <div className="card">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-slate-500 text-xs uppercase tracking-wide">Total Amount</p>
-                        <p className="text-3xl font-bold text-white mt-2">${vaultData.total_amount}</p>
-                      </div>
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center opacity-20">
-                        <DollarSign className="w-6 h-6 text-blue-400" />
-                      </div>
+                <div className="grid sm:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Total Amount', value: `$${vaultData.total_amount}`, cls: 'text-foreground' },
+                    { label: 'Locked', value: `$${vaultData.locked_amount}`, cls: 'text-yellow-600' },
+                    { label: 'Released', value: `$${vaultData.released_amount}`, cls: 'text-green-600' },
+                  ].map(({ label, value, cls }) => (
+                    <div key={label} className="rounded-[1.5rem] border border-border/60 bg-white/80 backdrop-blur p-5">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+                      <p className={`text-2xl font-semibold mt-2 ${cls}`}>{value}</p>
                     </div>
-                  </div>
-
-                  <div className="card">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-slate-500 text-xs uppercase tracking-wide">Locked</p>
-                        <p className="text-3xl font-bold text-yellow-400 mt-2">${vaultData.locked_amount}</p>
-                      </div>
-                      <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center opacity-20">
-                        <Lock className="w-6 h-6 text-yellow-400" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="card">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-slate-500 text-xs uppercase tracking-wide">Released</p>
-                        <p className="text-3xl font-bold text-green-400 mt-2">${vaultData.released_amount}</p>
-                      </div>
-                      <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center opacity-20">
-                        <TrendingUp className="w-6 h-6 text-green-400" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="card">
-                    <div>
-                      <p className="text-slate-500 text-xs uppercase tracking-wide">Status</p>
-                      <div className="mt-2">
-                        <span className={`badge ${vaultData.status === 'ACTIVE' ? 'badge-success' : 'badge-primary'}`}>
-                          {vaultData.status}
-                        </span>
-                      </div>
-                    </div>
+                  ))}
+                  <div className="rounded-[1.5rem] border border-border/60 bg-white/80 backdrop-blur p-5">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
+                    <span className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-medium ${vaultData.status === 'ACTIVE' ? 'bg-green-500/10 text-green-600' : 'bg-blue-500/10 text-blue-600'}`}>
+                      {vaultData.status}
+                    </span>
                   </div>
                 </div>
 
-                {/* Transactions */}
-                {vaultData.transactions && vaultData.transactions.length > 0 && (
-                  <div className="card">
-                    <h3 className="text-lg font-semibold text-white mb-4">Transaction History</h3>
+                {vaultData.transactions?.length > 0 && (
+                  <div className="rounded-[2rem] border border-border/60 bg-white/80 backdrop-blur p-6">
+                    <h3 className="text-base font-semibold text-foreground mb-4">Transaction History</h3>
                     <div className="space-y-3">
                       {vaultData.transactions.map((tx: any, idx: number) => (
-                        <div key={idx} className="flex justify-between items-start p-4 bg-slate-700/30 border border-slate-600/50 rounded-lg hover:border-slate-500 transition">
-                          <div className="flex items-start gap-3 flex-1">
-                            <div className="w-10 h-10 bg-slate-700/50 rounded-lg flex items-center justify-center flex-shrink-0 border border-slate-600/50">
-                              {getTransactionIcon(tx.type)}
+                        <div key={idx} className="flex justify-between items-center p-4 rounded-xl border border-border/40 bg-background/60 hover:border-green-500/30 transition">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl border border-border/50 bg-background flex items-center justify-center">
+                              {txIcon(tx.type)}
                             </div>
                             <div>
-                              <p className="text-white font-semibold text-sm">{tx.type}</p>
-                              <p className="text-slate-400 text-xs mt-1">{tx.description}</p>
-                              <p className="text-slate-500 text-xs mt-2">{new Date(tx.timestamp).toLocaleString()}</p>
+                              <p className="text-sm font-medium text-foreground">{tx.type}</p>
+                              <p className="text-xs text-muted-foreground">{tx.description}</p>
+                              <p className="text-xs text-muted-foreground/60 mt-0.5">{new Date(tx.timestamp).toLocaleString()}</p>
                             </div>
                           </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-white font-bold text-lg">${tx.amount}</p>
-                          </div>
+                          <p className="font-semibold text-foreground">${tx.amount}</p>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
-            )}
-
-            {!vaultData && !loading && (
-              <div className="card text-center py-16">
-                <Lock className="w-16 h-16 text-slate-600 mx-auto mb-4 opacity-50" />
-                <p className="text-slate-400 text-lg">Enter a vault ID to view escrow details</p>
+            ) : (
+              <div className="rounded-[2rem] border border-border/60 bg-white/80 backdrop-blur p-16 text-center">
+                <Lock className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                <p className="text-muted-foreground">Enter a vault ID to view escrow details</p>
               </div>
             )}
           </div>
@@ -286,94 +183,73 @@ export default function EscrowVault() {
         {/* Risk Assessment Tab */}
         {activeTab === 'risk' && (
           <div className="space-y-6">
-            <form onSubmit={handleAssessRisk} className="mb-8">
-              <div className="grid md:grid-cols-3 gap-2">
-                <input
-                  type="text"
-                  value={projectId}
-                  onChange={(e) => setProjectId(e.target.value)}
-                  placeholder="Project ID"
-                  className="input-field"
-                />
-                <input
-                  type="text"
-                  value={freelancerId}
-                  onChange={(e) => setFreelancerId(e.target.value)}
-                  placeholder="Freelancer ID"
-                  className="input-field"
-                />
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Assessing...' : 'Assess Risk'}
-                </button>
+            <form onSubmit={handleAssessRisk}>
+              <div className="grid sm:grid-cols-3 gap-2">
+                <input type="text" value={projectId} onChange={(e) => setProjectId(e.target.value)} placeholder="Project ID" className={inputCls} />
+                <input type="text" value={freelancerId} onChange={(e) => setFreelancerId(e.target.value)} placeholder="Freelancer ID" className={inputCls} />
+                <button type="submit" disabled={loading} className={btnCls}>{loading ? 'Assessing...' : 'Assess Risk'}</button>
               </div>
             </form>
 
-            {riskAssessment && (
+            {riskAssessment ? (
               <div className="space-y-6">
-                <div className={`card border-2 ${getRiskBgColor(riskAssessment.risk_level)}`}>
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`rounded-[2rem] border-2 p-6 ${riskBg(riskAssessment.risk_level)}`}
+                >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-slate-400 text-sm uppercase tracking-wide">Risk Level</p>
-                      <p className={`text-4xl font-bold mt-2 ${getRiskColor(riskAssessment.risk_level)}`}>
-                        {riskAssessment.risk_level}
-                      </p>
-                      <p className="text-slate-400 text-sm mt-2">Risk Score: {riskAssessment.risk_score}/100</p>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Risk Level</p>
+                      <p className={`text-4xl font-bold mt-2 ${riskColor(riskAssessment.risk_level)}`}>{riskAssessment.risk_level}</p>
+                      <p className="text-sm text-muted-foreground mt-2">Score: {riskAssessment.risk_score}/100</p>
                     </div>
-                    <Shield className={`w-12 h-12 ${getRiskColor(riskAssessment.risk_level)}`} />
+                    <Shield className={`w-10 h-10 ${riskColor(riskAssessment.risk_level)}`} />
                   </div>
-                </div>
+                </motion.div>
 
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="card">
-                    <h3 className="text-lg font-semibold text-white mb-4">Risk Factors</h3>
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <div className="rounded-[2rem] border border-border/60 bg-white/80 backdrop-blur p-6">
+                    <h3 className="text-base font-semibold text-foreground mb-4">Risk Factors</h3>
                     <ul className="space-y-2">
-                      {riskAssessment.risk_factors?.map((factor: string, idx: number) => (
-                        <li key={idx} className="flex items-start gap-2 text-slate-300">
-                          <span className="text-red-400 mt-1">•</span>
-                          <span>{factor}</span>
+                      {riskAssessment.risk_factors?.map((f: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                          <span className="text-red-500 mt-0.5">•</span>{f}
                         </li>
                       ))}
                     </ul>
                   </div>
-
-                  <div className="card">
-                    <h3 className="text-lg font-semibold text-white mb-4">Mitigation Strategies</h3>
+                  <div className="rounded-[2rem] border border-border/60 bg-white/80 backdrop-blur p-6">
+                    <h3 className="text-base font-semibold text-foreground mb-4">Mitigation Strategies</h3>
                     <ul className="space-y-2">
-                      {riskAssessment.mitigation_strategies?.map((strategy: string, idx: number) => (
-                        <li key={idx} className="flex items-start gap-2 text-slate-300">
-                          <span className="text-green-400 mt-1">✓</span>
-                          <span>{strategy}</span>
+                      {riskAssessment.mitigation_strategies?.map((s: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                          <span className="text-green-600 mt-0.5">✓</span>{s}
                         </li>
                       ))}
                     </ul>
                   </div>
                 </div>
 
-                <div className="card">
-                  <h3 className="text-lg font-semibold text-white mb-4">Recommendation</h3>
-                  <div className="flex items-center justify-between">
+                <div className="rounded-[2rem] border border-border/60 bg-white/80 backdrop-blur p-6">
+                  <h3 className="text-base font-semibold text-foreground mb-4">Recommendation</h3>
+                  <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="text-slate-400 text-sm">Payment Recommendation</p>
-                      <p className="text-2xl font-bold text-white mt-2">{riskAssessment.payment_recommendation}</p>
+                      <p className="text-xs text-muted-foreground">Payment Recommendation</p>
+                      <p className="text-xl font-semibold text-foreground mt-1">{riskAssessment.payment_recommendation}</p>
                     </div>
-                    <div>
-                      <p className="text-slate-400 text-sm">Hold Percentage</p>
-                      <p className="text-2xl font-bold text-yellow-400 mt-2">{riskAssessment.recommended_hold_percentage}%</p>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Hold Percentage</p>
+                      <p className="text-xl font-semibold text-yellow-600 mt-1">{riskAssessment.recommended_hold_percentage}%</p>
                     </div>
                   </div>
-                  <p className="text-slate-400 text-sm mt-4">{riskAssessment.reasoning}</p>
+                  <p className="text-sm text-muted-foreground">{riskAssessment.reasoning}</p>
                 </div>
               </div>
-            )}
-
-            {!riskAssessment && !loading && (
-              <div className="card text-center py-16">
-                <AlertTriangle className="w-16 h-16 text-slate-600 mx-auto mb-4 opacity-50" />
-                <p className="text-slate-400 text-lg">Enter Project ID and Freelancer ID to assess risk</p>
+            ) : (
+              <div className="rounded-[2rem] border border-border/60 bg-white/80 backdrop-blur p-16 text-center">
+                <AlertTriangle className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                <p className="text-muted-foreground">Enter Project ID and Freelancer ID to assess risk</p>
               </div>
             )}
           </div>
@@ -382,88 +258,57 @@ export default function EscrowVault() {
         {/* Payment Schedule Tab */}
         {activeTab === 'schedule' && (
           <div className="space-y-6">
-            <form onSubmit={handleOptimizeSchedule} className="mb-8">
-              <div className="grid md:grid-cols-3 gap-2">
-                <input
-                  type="text"
-                  value={projectId}
-                  onChange={(e) => setProjectId(e.target.value)}
-                  placeholder="Project ID"
-                  className="input-field"
-                />
-                <input
-                  type="text"
-                  value={freelancerId}
-                  onChange={(e) => setFreelancerId(e.target.value)}
-                  placeholder="Freelancer ID"
-                  className="input-field"
-                />
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Optimizing...' : 'Optimize Schedule'}
-                </button>
+            <form onSubmit={handleOptimizeSchedule}>
+              <div className="grid sm:grid-cols-3 gap-2">
+                <input type="text" value={projectId} onChange={(e) => setProjectId(e.target.value)} placeholder="Project ID" className={inputCls} />
+                <input type="text" value={freelancerId} onChange={(e) => setFreelancerId(e.target.value)} placeholder="Freelancer ID" className={inputCls} />
+                <button type="submit" disabled={loading} className={btnCls}>{loading ? 'Optimizing...' : 'Optimize Schedule'}</button>
               </div>
             </form>
 
-            {paymentSchedule && (
+            {paymentSchedule ? (
               <div className="space-y-6">
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="card">
-                    <p className="text-slate-500 text-xs uppercase tracking-wide">Strategy</p>
-                    <p className="text-2xl font-bold text-blue-400 mt-2">{paymentSchedule.payment_strategy}</p>
-                  </div>
-                  <div className="card">
-                    <p className="text-slate-500 text-xs uppercase tracking-wide">Immediate Release</p>
-                    <p className="text-2xl font-bold text-green-400 mt-2">${paymentSchedule.total_immediate_release}</p>
-                  </div>
-                  <div className="card">
-                    <p className="text-slate-500 text-xs uppercase tracking-wide">Total Held</p>
-                    <p className="text-2xl font-bold text-yellow-400 mt-2">${paymentSchedule.total_held}</p>
-                  </div>
+                <div className="grid sm:grid-cols-3 gap-4">
+                  {[
+                    { label: 'Strategy', value: paymentSchedule.payment_strategy, cls: 'text-blue-600' },
+                    { label: 'Immediate Release', value: `$${paymentSchedule.total_immediate_release}`, cls: 'text-green-600' },
+                    { label: 'Total Held', value: `$${paymentSchedule.total_held}`, cls: 'text-yellow-600' },
+                  ].map(({ label, value, cls }) => (
+                    <div key={label} className="rounded-[1.5rem] border border-border/60 bg-white/80 backdrop-blur p-5">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+                      <p className={`text-xl font-semibold mt-2 ${cls}`}>{value}</p>
+                    </div>
+                  ))}
                 </div>
 
-                <div className="card">
-                  <h3 className="text-lg font-semibold text-white mb-4">Milestone Adjustments</h3>
+                <div className="rounded-[2rem] border border-border/60 bg-white/80 backdrop-blur p-6">
+                  <h3 className="text-base font-semibold text-foreground mb-4">Milestone Adjustments</h3>
                   <div className="space-y-3">
                     {paymentSchedule.milestone_adjustments?.map((adj: any, idx: number) => (
-                      <div key={idx} className="p-4 bg-slate-700/30 border border-slate-600/50 rounded-lg">
-                        <div className="flex justify-between items-start mb-3">
-                          <p className="font-semibold text-white">Milestone {adj.milestone_index + 1}</p>
-                          <span className="badge badge-primary text-xs">{adj.release_condition}</span>
+                      <div key={idx} className="p-4 rounded-xl border border-border/40 bg-background/60">
+                        <div className="flex justify-between items-center mb-3">
+                          <p className="font-medium text-foreground text-sm">Milestone {adj.milestone_index + 1}</p>
+                          <span className="rounded-full bg-blue-500/10 px-3 py-0.5 text-xs font-medium text-blue-600">{adj.release_condition}</span>
                         </div>
                         <div className="grid grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <p className="text-slate-400">Original</p>
-                            <p className="text-white font-bold">${adj.original_payment}</p>
-                          </div>
-                          <div>
-                            <p className="text-slate-400">Adjusted</p>
-                            <p className="text-green-400 font-bold">${adj.adjusted_payment}</p>
-                          </div>
-                          <div>
-                            <p className="text-slate-400">Hold</p>
-                            <p className="text-yellow-400 font-bold">${adj.hold_amount}</p>
-                          </div>
+                          <div><p className="text-muted-foreground text-xs">Original</p><p className="font-semibold text-foreground">${adj.original_payment}</p></div>
+                          <div><p className="text-muted-foreground text-xs">Adjusted</p><p className="font-semibold text-green-600">${adj.adjusted_payment}</p></div>
+                          <div><p className="text-muted-foreground text-xs">Hold</p><p className="font-semibold text-yellow-600">${adj.hold_amount}</p></div>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="card">
-                  <p className="text-slate-400 text-sm">Strategy Rationale</p>
-                  <p className="text-white mt-2">{paymentSchedule.strategy_rationale}</p>
+                <div className="rounded-[2rem] border border-border/60 bg-white/80 backdrop-blur p-6">
+                  <p className="text-xs text-muted-foreground mb-2">Strategy Rationale</p>
+                  <p className="text-sm text-foreground">{paymentSchedule.strategy_rationale}</p>
                 </div>
               </div>
-            )}
-
-            {!paymentSchedule && !loading && (
-              <div className="card text-center py-16">
-                <Zap className="w-16 h-16 text-slate-600 mx-auto mb-4 opacity-50" />
-                <p className="text-slate-400 text-lg">Enter Project ID and Freelancer ID to optimize payment schedule</p>
+            ) : (
+              <div className="rounded-[2rem] border border-border/60 bg-white/80 backdrop-blur p-16 text-center">
+                <Zap className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                <p className="text-muted-foreground">Enter Project ID and Freelancer ID to optimize payment schedule</p>
               </div>
             )}
           </div>

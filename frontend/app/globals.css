@@ -2,72 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  @apply bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100;
-}
-
-@layer components {
-  .btn-primary {
-    @apply px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 rounded-lg text-white font-semibold transition-all duration-200 shadow-lg hover:shadow-xl hover:shadow-blue-500/20;
-  }
-
-  .btn-secondary {
-    @apply px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-white font-semibold transition-all duration-200;
-  }
-
-  .card {
-    @apply bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-xl p-6 hover:border-slate-600 transition-all duration-200 backdrop-blur-sm;
-  }
-
-  .card-hover {
-    @apply card hover:shadow-lg hover:shadow-blue-500/10 hover:border-blue-500/30;
-  }
-
-  .input-field {
-    @apply w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200;
-  }
-
-  .badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
-  }
-
-  .badge-primary {
-    @apply badge bg-blue-500/20 text-blue-300;
-  }
-
-  .badge-success {
-    @apply badge bg-green-500/20 text-green-300;
-  }
-
-  .badge-warning {
-    @apply badge bg-yellow-500/20 text-yellow-300;
-  }
-
-  .section-title {
-    @apply text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent;
-  }
-
-  .section-subtitle {
-    @apply text-lg text-slate-300;
-  }
-}
-
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  color-scheme: light;
+  --background: 210 40% 98%;
+  --foreground: 222.2 47.4% 11.2%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --border: 214.3 31.8% 91.4%;
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+.dark {
+  color-scheme: dark;
+  --background: 222.2 47.4% 6%;
+  --foreground: 210 40% 98%;
+  --muted-foreground: 215 20.2% 72.9%;
+  --border: 217.2 32.6% 17.5%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply min-h-screen bg-background text-foreground antialiased;
+  }
 }

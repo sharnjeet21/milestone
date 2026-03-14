@@ -65,50 +65,75 @@ def get_escrow_agent():
         _escrow_agent = SmartEscrowAgent()
     return _escrow_agent
 
-# In-memory storage (fallback if Firebase is not available)
+# In-memory storage (fallback when Firestore is unavailable)
 projects_db = {}
 freelancers_db = {}
 
 def save_project_to_db(project_id: str, project: dict):
-    """Save project to both Firebase and in-memory storage"""
     projects_db[project_id] = project
     if firebase_db.is_available():
         try:
             firebase_db.create_project(project_id, project)
         except Exception as e:
-            print(f"Failed to save to Firebase: {e}")
+            print(f"Firestore write failed (project): {e}")
 
 def get_project_from_db(project_id: str) -> Optional[dict]:
-    """Get project from Firebase or in-memory storage"""
+    # Firestore is source of truth
     if firebase_db.is_available():
         try:
-            project = firebase_db.get_project(project_id)
-            if project:
-                return project
+            doc = firebase_db.get_project(project_id)
+            if doc:
+                projects_db[project_id] = doc  # keep in-memory in sync
+                return doc
         except Exception as e:
-            print(f"Failed to get from Firebase: {e}")
+            print(f"Firestore read failed (project): {e}")
     return projects_db.get(project_id)
 
+def get_all_projects_from_db() -> list:
+    if firebase_db.is_available():
+        try:
+            docs = firebase_db.get_all_projects()
+            if docs:
+                for d in docs:
+                    projects_db[d["id"]] = d
+                return docs
+        except Exception as e:
+            print(f"Firestore read failed (projects list): {e}")
+    return list(projects_db.values())
+
+def update_project_in_db(project_id: str, project: dict):
+    projects_db[project_id] = project
+    if firebase_db.is_available():
+        try:
+            firebase_db.update_project(project_id, project)
+        except Exception as e:
+            print(f"Firestore update failed (project): {e}")
+
 def save_vault_to_db(vault_id: str, vault: dict):
-    """Save vault to Firebase"""
     if firebase_db.is_available():
         try:
             firebase_db.create_vault(vault_id, vault)
         except Exception as e:
-            print(f"Failed to save vault to Firebase: {e}")
+            print(f"Firestore write failed (vault): {e}")
 
-def update_freelancer_in_db(freelancer_id: str, data: dict):
-    """Update freelancer in both storages"""
+def get_freelancer_from_db(freelancer_id: str) -> Optional[dict]:
+    if firebase_db.is_available():
+        try:
+            doc = firebase_db.get_user(freelancer_id)
+            if doc:
+                freelancers_db[freelancer_id] = doc
+                return doc
+        except Exception as e:
+            print(f"Firestore read failed (freelancer): {e}")
+    return freelancers_db.get(freelancer_id)
+
+def upsert_freelancer_in_db(freelancer_id: str, data: dict):
     freelancers_db[freelancer_id] = data
     if firebase_db.is_available():
         try:
-            existing = firebase_db.get_user(freelancer_id)
-            if existing:
-                firebase_db.update_user(freelancer_id, data)
-            else:
-                firebase_db.create_user(freelancer_id, data)
+            firebase_db.upsert_user(freelancer_id, data)
         except Exception as e:
-            print(f"Failed to update freelancer in Firebase: {e}")
+            print(f"Firestore upsert failed (freelancer): {e}")
 
 # Request Models
 class ProjectRequest(BaseModel):
@@ -124,11 +149,15 @@ class ProjectRequest(BaseModel):
 class SubmitWorkRequest(BaseModel):
     project_id: str
     milestone_id: str
-    freelancer_id: str
-    submitted_work: str
+    freelancer_id: Optional[str] = "demo-freelancer-1"
+    submitted_work: Optional[str] = None
+    submission_content: Optional[str] = None  # frontend field name
     submission_type: str = "text"
     days_taken: int = 0
     revision_count: int = 0
+
+    def get_work(self) -> str:
+        return self.submission_content or self.submitted_work or ""
 
 class ClarifyRequest(BaseModel):
     description: str
@@ -142,9 +171,13 @@ def root():
         "status": "operational"
     }
 
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
+
 @app.get("/api/projects")
 async def list_projects():
-    return list(projects_db.values())
+    return get_all_projects_from_db()
 
 @app.post("/api/projects/clarify")
 async def clarify_project(request: ClarifyRequest):
@@ -190,18 +223,18 @@ async def create_project(request: ProjectRequest):
         )
         project["vault_id"] = vault["vault_id"]
         
-        # Save to both Firebase and in-memory
+        # Save to Firestore + in-memory
         save_project_to_db(project_id, project)
         save_vault_to_db(vault["vault_id"], vault)
 
-        if request.freelancer_id not in freelancers_db:
+        if not get_freelancer_from_db(request.freelancer_id or "unassigned"):
             freelancer_data = {
-                "id": request.freelancer_id,
+                "id": request.freelancer_id or "unassigned",
                 "pfi_score": 500.0,
                 "total_projects": 0,
-                "completed_milestones": 0
+                "completed_milestones": 0,
             }
-            update_freelancer_in_db(request.freelancer_id, freelancer_data)
+            upsert_freelancer_in_db(request.freelancer_id or "unassigned", freelancer_data)
 
         return {
             "success": True,
@@ -215,7 +248,7 @@ async def create_project(request: ProjectRequest):
 @app.post("/api/milestones/submit")
 async def submit_milestone(request: SubmitWorkRequest):
     try:
-        project = projects_db.get(request.project_id)
+        project = get_project_from_db(request.project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
@@ -232,7 +265,7 @@ async def submit_milestone(request: SubmitWorkRequest):
 
         evaluation = get_quality_agent().evaluate_submission(
             milestone=milestone,
-            submitted_work=request.submitted_work,
+            submitted_work=request.get_work(),
             submission_type=request.submission_type
         )
 
@@ -244,7 +277,7 @@ async def submit_milestone(request: SubmitWorkRequest):
             employer_id=project["employer_id"]
         )
 
-        freelancer = freelancers_db.get(request.freelancer_id, {"pfi_score": 500.0})
+        freelancer = get_freelancer_from_db(request.freelancer_id) or {"pfi_score": 500.0}
         deadline_met = request.days_taken <= milestone_data["deadline_days"]
         days_late = max(0, request.days_taken - milestone_data["deadline_days"])
 
@@ -256,18 +289,22 @@ async def submit_milestone(request: SubmitWorkRequest):
             revision_count=request.revision_count
         )
 
-        if request.freelancer_id in freelancers_db:
-            freelancers_db[request.freelancer_id]["pfi_score"] = pfi_update["new_score"]
-            freelancers_db[request.freelancer_id]["completed_milestones"] = \
-                freelancers_db[request.freelancer_id].get("completed_milestones", 0) + 1
+        updated_freelancer = {
+            **freelancer,
+            "pfi_score": pfi_update["new_score"],
+            "completed_milestones": freelancer.get("completed_milestones", 0) + 1,
+        }
+        upsert_freelancer_in_db(request.freelancer_id, updated_freelancer)
 
         for i, m in enumerate(project["milestones"]):
             if m["id"] == request.milestone_id:
                 project["milestones"][i]["status"] = evaluation["status"]
                 project["milestones"][i]["completion_score"] = evaluation["completion_score"]
                 project["milestones"][i]["feedback"] = evaluation["detailed_feedback"]
-                project["milestones"][i]["submitted_work"] = request.submitted_work
+                project["milestones"][i]["submitted_work"] = request.get_work()
                 break
+
+        update_project_in_db(request.project_id, project)
 
         return {
             "success": True,
@@ -295,14 +332,14 @@ async def get_project(project_id: str):
 @app.get("/api/escrow/{vault_id}")
 async def get_escrow_status(vault_id: str):
     try:
-        vault = payment_agent.escrow.get_vault_status(vault_id)
+        vault = get_payment_agent().escrow.get_vault_status(vault_id)
         return vault
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 @app.get("/api/freelancer/{freelancer_id}/pfi")
 async def get_pfi_score(freelancer_id: str):
-    freelancer = freelancers_db.get(freelancer_id)
+    freelancer = get_freelancer_from_db(freelancer_id)
     if not freelancer:
         return {
             "freelancer_id": freelancer_id,
@@ -312,7 +349,7 @@ async def get_pfi_score(freelancer_id: str):
         }
 
     score = freelancer["pfi_score"]
-    tier_info = pfi_agent._get_tier(score)
+    tier_info = get_pfi_agent()._get_tier(score)
 
     return {
         "freelancer_id": freelancer_id,
@@ -325,16 +362,24 @@ async def get_pfi_score(freelancer_id: str):
 
 @app.get("/api/projects/{project_id}/milestones")
 async def get_milestones(project_id: str):
-    project = projects_db.get(project_id)
+    project = get_project_from_db(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return {"milestones": project["milestones"]}
 
+class AssessRiskRequest(BaseModel):
+    project_id: str
+    milestone_id: str
+    freelancer_id: str
+
 @app.post("/api/escrow/assess-risk")
-async def assess_milestone_risk(project_id: str, milestone_id: str, freelancer_id: str):
+async def assess_milestone_risk(request: AssessRiskRequest):
+    project_id = request.project_id
+    milestone_id = request.milestone_id
+    freelancer_id = request.freelancer_id
     """Assess risk for a milestone payment using smart escrow"""
     try:
-        project = projects_db.get(project_id)
+        project = get_project_from_db(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         
@@ -347,7 +392,7 @@ async def assess_milestone_risk(project_id: str, milestone_id: str, freelancer_i
         if not milestone_data:
             raise HTTPException(status_code=404, detail="Milestone not found")
         
-        freelancer = freelancers_db.get(freelancer_id, {"pfi_score": 500.0, "completed_milestones": 0})
+        freelancer = get_freelancer_from_db(freelancer_id) or {"pfi_score": 500.0, "completed_milestones": 0}
         
         risk_assessment = get_escrow_agent().assess_risk(
             project_data={
@@ -377,15 +422,21 @@ async def assess_milestone_risk(project_id: str, milestone_id: str, freelancer_i
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+class OptimizeScheduleRequest(BaseModel):
+    project_id: str
+    freelancer_id: str
+
 @app.post("/api/escrow/optimize-schedule")
-async def optimize_payment_schedule(project_id: str, freelancer_id: str):
+async def optimize_payment_schedule(request: OptimizeScheduleRequest):
+    project_id = request.project_id
+    freelancer_id = request.freelancer_id
     """Get optimized payment schedule for a project"""
     try:
-        project = projects_db.get(project_id)
+        project = get_project_from_db(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        freelancer = freelancers_db.get(freelancer_id, {"pfi_score": 500.0})
+        freelancer = get_freelancer_from_db(freelancer_id) or {"pfi_score": 500.0}
         vault = get_payment_agent().escrow.get_vault_status(project.get("vault_id"))
         
         optimization = get_escrow_agent().optimize_payment_schedule(
@@ -411,11 +462,11 @@ async def optimize_payment_schedule(project_id: str, freelancer_id: str):
 async def detect_fraud_signals(project_id: str, milestone_id: str, freelancer_id: str, submitted_work: str, days_taken: int, revision_count: int):
     """Detect potential fraud signals in a submission"""
     try:
-        project = projects_db.get(project_id)
+        project = get_project_from_db(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        freelancer = freelancers_db.get(freelancer_id, {"pfi_score": 500.0, "completed_milestones": 0})
+        freelancer = get_freelancer_from_db(freelancer_id) or {"pfi_score": 500.0, "completed_milestones": 0}
         
         fraud_detection = get_escrow_agent().detect_fraud_signals(
             submission_data={

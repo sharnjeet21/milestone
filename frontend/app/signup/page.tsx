@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Mail, Lock, User, Loader } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Mail, Lock, User, Loader2 } from 'lucide-react';
 import { signUpWithEmail } from '@/lib/auth';
 
 export default function SignupPage() {
@@ -19,132 +20,141 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
-
     try {
       await signUpWithEmail(email, password, displayName, role);
       router.push('/');
-    } catch (err: any) {
-      setError(err.message || 'Failed to create account');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to create account');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Link href="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-8 transition">
+    <main className="min-h-[calc(100svh-3.5rem)] bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.08),_transparent_28%),linear-gradient(180deg,_rgba(255,255,255,0.96),_rgba(240,253,250,0.86)_52%,_rgba(255,255,255,1))] px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-md">
+        <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8 transition">
           <ArrowLeft className="w-4 h-4" />
           Back to home
         </Link>
 
-        <div className="card">
-          <h1 className="text-3xl font-bold text-white mb-2">Create account</h1>
-          <p className="text-slate-400 mb-8">Join MilestoneAI and start your journey</p>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="rounded-[2rem] border border-border/60 bg-white/85 p-8 shadow-xl shadow-slate-900/5 backdrop-blur"
+        >
+          <p className="text-sm font-medium uppercase tracking-[0.24em] text-green-600">
+            Get started
+          </p>
+          <h1 className="mt-2 text-3xl font-medium tracking-tight text-foreground">
+            Create your account
+          </h1>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+            <div className="mt-6 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSignup} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
+          <form onSubmit={handleSignup} className="mt-8 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Full Name</label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="input-field pl-11"
                   placeholder="John Doe"
                   required
+                  className="h-11 w-full rounded-xl border border-border/50 bg-background pl-10 pr-4 text-sm outline-none transition focus:border-green-500/60"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Email</label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Email</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="input-field pl-11"
                   placeholder="you@example.com"
                   required
+                  className="h-11 w-full rounded-xl border border-border/50 bg-background pl-10 pr-4 text-sm outline-none transition focus:border-green-500/60"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input-field pl-11"
                   placeholder="••••••••"
                   required
                   minLength={6}
+                  className="h-11 w-full rounded-xl border border-border/50 bg-background pl-10 pr-4 text-sm outline-none transition focus:border-green-500/60"
                 />
               </div>
-              <p className="text-xs text-slate-500 mt-1">At least 6 characters</p>
+              <p className="text-xs text-muted-foreground">At least 6 characters</p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">I am a...</label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">I am a...</label>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setRole('freelancer')}
-                  className={`p-4 rounded-lg border-2 transition ${
+                  className={`rounded-xl border-2 p-4 text-left transition ${
                     role === 'freelancer'
-                      ? 'border-blue-500 bg-blue-500/10'
-                      : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                      ? 'border-green-500 bg-green-500/10'
+                      : 'border-border/50 bg-background hover:border-green-500/40'
                   }`}
                 >
-                  <p className="font-semibold text-white">Freelancer</p>
-                  <p className="text-xs text-slate-400 mt-1">Find work & earn</p>
+                  <p className="font-semibold text-foreground text-sm">Freelancer</p>
+                  <p className="text-xs text-muted-foreground mt-1">Find work & earn</p>
                 </button>
-
                 <button
                   type="button"
                   onClick={() => setRole('employer')}
-                  className={`p-4 rounded-lg border-2 transition ${
+                  className={`rounded-xl border-2 p-4 text-left transition ${
                     role === 'employer'
-                      ? 'border-blue-500 bg-blue-500/10'
-                      : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                      ? 'border-green-500 bg-green-500/10'
+                      : 'border-border/50 bg-background hover:border-green-500/40'
                   }`}
                 >
-                  <p className="font-semibold text-white">Employer</p>
-                  <p className="text-xs text-slate-400 mt-1">Post projects</p>
+                  <p className="font-semibold text-foreground text-sm">Employer</p>
+                  <p className="text-xs text-muted-foreground mt-1">Post projects</p>
                 </button>
               </div>
             </div>
 
-            <button
+            <motion.button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-6"
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-green-600 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading && <Loader className="w-4 h-4 animate-spin" />}
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Create account
-            </button>
+            </motion.button>
           </form>
 
-          <p className="text-center text-sm text-slate-400 mt-6">
+          <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{' '}
-            <Link href="/login" className="text-blue-400 hover:text-blue-300 transition">
+            <Link href="/login" className="font-medium text-green-600 transition hover:text-green-700">
               Sign in
             </Link>
           </p>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </main>
   );
 }
