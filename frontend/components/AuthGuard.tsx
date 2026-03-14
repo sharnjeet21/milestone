@@ -135,15 +135,15 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               className="fixed inset-0 z-[80] bg-slate-950/50 backdrop-blur-sm"
             />
 
-            {/* Modal — always centered in viewport */}
+            {/* Modal — fixed overlay centers the card */}
+            <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 81, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
             <motion.div
               initial={{ opacity: 0, y: 28, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.97 }}
               transition={{ duration: 0.22, ease: "easeOut" }}
-              style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 81, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}
+              className="w-full max-w-md overflow-y-auto max-h-[90svh] rounded-[2rem] border border-border/60 bg-background p-8 shadow-2xl shadow-slate-950/20"
             >
-              <div className="w-full max-w-md overflow-y-auto max-h-[90svh] rounded-[2rem] border border-border/60 bg-background p-8 shadow-2xl shadow-slate-950/20">
               {/* Header */}
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -279,8 +279,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                   {mode === "login" ? "Sign up" : "Sign in"}
                 </button>
               </p>
-            </div>
             </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
