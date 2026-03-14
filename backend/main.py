@@ -1,9 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import uuid
+import os
 from datetime import datetime
+
+import stripe_service
 
 from agents.nlp_agent import NLPAgent
 from agents.quality_agent import QualityAgent
@@ -493,6 +496,106 @@ async def detect_fraud_signals(project_id: str, milestone_id: str, freelancer_id
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ── Stripe Routes ─────────────────────────────────────────────────────────────
+
+class CreatePaymentIntentRequest(BaseModel):
+    project_id: str
+    vault_id: str
+    amount: float
+    employer_stripe_customer_id: Optional[str] = None
+
+@app.post("/api/stripe/create-payment-intent")
+async def create_payment_intent(request: CreatePaymentIntentRequest):
+    try:
+        result = stripe_service.create_payment_intent(
+            amount=request.amount,
+            employer_stripe_customer_id=request.employer_stripe_customer_id,
+            project_id=request.project_id,
+            vault_id=request.vault_id,
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class CapturePaymentIntentRequest(BaseModel):
+    payment_intent_id: str
+
+@app.post("/api/stripe/capture")
+async def capture_payment_intent(request: CapturePaymentIntentRequest):
+    try:
+        result = stripe_service.capture_payment_intent(request.payment_intent_id)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class FreelancerOnboardRequest(BaseModel):
+    freelancer_id: str
+    email: str
+
+@app.post("/api/stripe/freelancer-onboard")
+async def freelancer_onboard(request: FreelancerOnboardRequest):
+    try:
+        account = stripe_service.create_connect_account(
+            email=request.email,
+            freelancer_id=request.freelancer_id,
+        )
+        account_id = account["account_id"]
+
+        base_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        link = stripe_service.create_account_link(
+            account_id=account_id,
+            refresh_url=f"{base_url}/freelancer/workspace?onboarding=refresh",
+            return_url=f"{base_url}/freelancer/workspace?onboarding=complete",
+        )
+
+        # Persist account_id to Firestore
+        if firebase_db.is_available():
+            try:
+                firebase_db.upsert_user(request.freelancer_id, {"stripe_account_id": account_id})
+            except Exception:
+                pass
+
+        return {"account_id": account_id, "onboarding_url": link["url"]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/stripe/account-status/{freelancer_id}")
+async def get_stripe_account_status(freelancer_id: str):
+    try:
+        freelancer = get_freelancer_from_db(freelancer_id)
+        account_id = (freelancer or {}).get("stripe_account_id")
+        if not account_id:
+            return {"connected": False, "charges_enabled": False, "payouts_enabled": False}
+        status = stripe_service.get_account_status(account_id)
+        return {"connected": True, **status}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+    webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+
+    try:
+        event = stripe_service.verify_webhook(payload, sig_header, webhook_secret)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Webhook error: {e}")
+
+    event_type = event.get("type", "")
+
+    if event_type == "payment_intent.succeeded":
+        pi = event["data"]["object"]
+        project_id = pi.get("metadata", {}).get("project_id")
+        print(f"✅ PaymentIntent succeeded for project {project_id}")
+
+    elif event_type == "transfer.created":
+        transfer = event["data"]["object"]
+        print(f"💸 Transfer created: {transfer['id']} → {transfer['destination']}")
+
+    return {"received": True}
+
 
 if __name__ == "__main__":
     import uvicorn
