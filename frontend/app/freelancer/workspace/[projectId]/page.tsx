@@ -29,7 +29,7 @@ import { getProject, submitMilestone } from "@/lib/api";
 import { auth } from "@/lib/firebase";
 import { useAPI } from "@/lib/useAPI";
 import { cn } from "@/lib/utils";
-import { recordEarning } from "@/app/payment/page";
+import { recordEarning } from "@/lib/earnings";
 import type {
   ChecklistEvaluation,
   DeliverableType,
@@ -163,6 +163,9 @@ function buildProjectFromAppliedProject(projectId: string): Project {
       description:
         "A local workspace preview generated because no project snapshot was available.",
       total_budget: 4200,
+      timeline_days: 25,
+      deliverable_type: "code",
+      tech_stack: [],
       milestones: [
         {
           id: `${projectId}_ms_1`,
@@ -237,6 +240,9 @@ function buildProjectFromAppliedProject(projectId: string): Project {
     title: appliedProject.title,
     description: appliedProject.description,
     total_budget: appliedProject.budget,
+    timeline_days: appliedProject.timeline_days,
+    deliverable_type: appliedProject.deliverable_type,
+    tech_stack: [],
     milestones: [
       {
         id: `${appliedProject.id}_ms_1`,
