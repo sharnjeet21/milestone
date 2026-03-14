@@ -1,15 +1,16 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
-import { ArrowLeft, Send, Paperclip, Users } from "lucide-react";
+import { motion } from "framer-motion";
+import { Send, Paperclip, MessageSquare } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type Message = { id: string; sender: "me" | "other"; name: string; text: string; time: string; };
-type Contact = { id: string; name: string; role: string; project: string; unread: number; };
+type Contact = { id: string; name: string; role: string; project: string; unread: number; avatar: string; };
 
 const CONTACTS: Contact[] = [
-  { id: "c1", name: "Alex Chen", role: "Employer", project: "AI Dashboard", unread: 2 },
-  { id: "c2", name: "Priya Sharma", role: "Freelancer", project: "E-commerce Site", unread: 0 },
-  { id: "c3", name: "Marcus Lee", role: "Employer", project: "Mobile App", unread: 1 },
+  { id: "c1", name: "Alex Chen", role: "Employer", project: "AI Dashboard", unread: 2, avatar: "AC" },
+  { id: "c2", name: "Priya Sharma", role: "Freelancer", project: "E-commerce Site", unread: 0, avatar: "PS" },
+  { id: "c3", name: "Marcus Lee", role: "Employer", project: "Mobile App", unread: 1, avatar: "ML" },
 ];
 
 const MOCK_MSGS: Record<string, Message[]> = {
@@ -18,17 +19,13 @@ const MOCK_MSGS: Record<string, Message[]> = {
     { id: "2", sender: "me", name: "You", text: "Sure! I can have it done by Friday. The core features are already 60% done.", time: "2:35 PM" },
     { id: "3", sender: "other", name: "Alex Chen", text: "Perfect. Also, can you share the task breakdown?", time: "2:36 PM" },
   ],
-  c2: [
-    { id: "1", sender: "other", name: "Priya Sharma", text: "I've submitted the design files for review.", time: "11:00 AM" },
-  ],
-  c3: [
-    { id: "1", sender: "other", name: "Marcus Lee", text: "Can we schedule a quick call to review the app flow?", time: "Yesterday" },
-  ],
+  c2: [{ id: "1", sender: "other", name: "Priya Sharma", text: "I've submitted the design files for review.", time: "11:00 AM" }],
+  c3: [{ id: "1", sender: "other", name: "Marcus Lee", text: "Can we schedule a quick call to review the app flow?", time: "Yesterday" }],
 };
 
 export default function ChatPage() {
-  const [active, setActive] = useState<string>("c1");
-  const [messages, setMessages] = useState<Record<string, Message[]>>(MOCK_MSGS);
+  const [active, setActive] = useState("c1");
+  const [messages, setMessages] = useState(MOCK_MSGS);
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -44,55 +41,99 @@ export default function ChatPage() {
   const contact = CONTACTS.find(c => c.id === active)!;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col">
-      <div className="border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-xl sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-4">
-          <Link href="/" className="p-2 hover:bg-slate-800 rounded-lg transition"><ArrowLeft className="w-5 h-5 text-slate-400" /></Link>
-          <h1 className="text-xl font-semibold text-white">Messages</h1>
-        </div>
-      </div>
+    <main className="min-h-[calc(100svh-3.5rem)] px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl space-y-6">
 
-      <div className="flex flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6 gap-4 h-[calc(100vh-80px)]">
-        {/* Sidebar */}
-        <div className="w-72 shrink-0 space-y-2">
-          <p className="text-slate-500 text-xs uppercase tracking-widest px-2 mb-3 flex items-center gap-2"><Users className="w-3.5 h-3.5" /> Conversations</p>
-          {CONTACTS.map(c => (
-            <button key={c.id} onClick={() => setActive(c.id)} className={`w-full text-left p-3 rounded-xl transition ${active === c.id ? "bg-blue-500/20 border border-blue-500/30" : "bg-slate-800/50 hover:bg-slate-800 border border-transparent"}`}>
-              <div className="flex items-center justify-between">
-                <p className="text-white text-sm font-medium">{c.name}</p>
-                {c.unread > 0 && <span className="w-5 h-5 bg-blue-500 rounded-full text-xs text-white flex items-center justify-center">{c.unread}</span>}
+        {/* Header */}
+        <motion.div whileHover={{ y: -2, transition: { duration: 0.2 } }}
+          className="rounded-[2rem] border border-border/60 bg-white/80 p-6 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+          <p className="text-sm font-medium uppercase tracking-[0.24em] text-green-600 dark:text-green-400">Messaging</p>
+          <h1 className="mt-1 text-3xl font-medium tracking-tight text-foreground">Messages</h1>
+        </motion.div>
+
+        {/* Chat layout */}
+        <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+
+          {/* Contacts sidebar */}
+          <motion.div whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            className="rounded-[2rem] border border-border/60 bg-white/80 p-4 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70">
+            <p className="mb-3 px-2 text-xs font-medium uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+              <MessageSquare className="w-3.5 h-3.5" /> Conversations
+            </p>
+            <div className="space-y-1">
+              {CONTACTS.map(c => (
+                <button key={c.id} onClick={() => setActive(c.id)}
+                  className={cn("w-full text-left rounded-2xl px-3 py-3 transition",
+                    active === c.id ? "bg-green-500/10 border border-green-500/20" : "border border-transparent hover:bg-foreground/5")}>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-600 text-xs font-semibold text-white">
+                      {c.avatar}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
+                        {c.unread > 0 && (
+                          <span className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500 text-xs text-white">{c.unread}</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{c.role} · {c.project}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Chat window */}
+          <motion.div whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            className="flex flex-col rounded-[2rem] border border-border/60 bg-white/80 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70 overflow-hidden"
+            style={{ minHeight: "480px" }}>
+
+            {/* Chat header */}
+            <div className="flex items-center gap-3 border-b border-border/50 px-6 py-4">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-600 text-xs font-semibold text-white">
+                {contact.avatar}
               </div>
-              <p className="text-slate-400 text-xs mt-0.5">{c.role} · {c.project}</p>
-            </button>
-          ))}
-        </div>
+              <div>
+                <p className="font-medium text-foreground">{contact.name}</p>
+                <p className="text-xs text-muted-foreground">{contact.role} · {contact.project}</p>
+              </div>
+            </div>
 
-        {/* Chat */}
-        <div className="flex-1 flex flex-col bg-slate-900/50 rounded-2xl border border-slate-700/50 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-700/50">
-            <p className="text-white font-semibold">{contact.name}</p>
-            <p className="text-slate-400 text-xs">{contact.role} · {contact.project}</p>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-5 space-y-4">
-            {(messages[active] || []).map(msg => (
-              <div key={msg.id} className={`flex ${msg.sender === "me" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-xs lg:max-w-md px-4 py-2.5 rounded-2xl text-sm ${msg.sender === "me" ? "bg-blue-500 text-white rounded-br-sm" : "bg-slate-800 text-slate-200 rounded-bl-sm"}`}>
-                  <p>{msg.text}</p>
-                  <p className={`text-xs mt-1 ${msg.sender === "me" ? "text-blue-200" : "text-slate-500"}`}>{msg.time}</p>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              {(messages[active] || []).map(msg => (
+                <div key={msg.id} className={cn("flex", msg.sender === "me" ? "justify-end" : "justify-start")}>
+                  <div className={cn("max-w-xs lg:max-w-sm rounded-2xl px-4 py-2.5 text-sm",
+                    msg.sender === "me"
+                      ? "bg-green-600 text-white rounded-br-sm"
+                      : "border border-border/50 bg-background text-foreground rounded-bl-sm")}>
+                    <p>{msg.text}</p>
+                    <p className={cn("mt-1 text-xs", msg.sender === "me" ? "text-green-200" : "text-muted-foreground")}>{msg.time}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-            <div ref={bottomRef} />
-          </div>
+              ))}
+              <div ref={bottomRef} />
+            </div>
 
-          <div className="px-4 py-3 border-t border-slate-700/50 flex gap-3">
-            <button className="p-2 text-slate-400 hover:text-slate-300 transition"><Paperclip className="w-5 h-5" /></button>
-            <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder="Type a message..." className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white text-sm outline-none focus:border-blue-500" />
-            <button onClick={send} className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition"><Send className="w-5 h-5" /></button>
-          </div>
+            {/* Input */}
+            <div className="flex items-center gap-3 border-t border-border/50 px-4 py-3">
+              <button className="p-2 text-muted-foreground transition hover:text-foreground">
+                <Paperclip className="w-4 h-4" />
+              </button>
+              <input value={input} onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && send()}
+                placeholder="Type a message..."
+                className="h-10 flex-1 rounded-xl border border-border/50 bg-background px-4 text-sm outline-none transition focus:border-green-500/60 placeholder:text-muted-foreground/60" />
+              <button onClick={send}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-green-600 text-white transition hover:bg-green-700">
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+
         </div>
       </div>
-    </div>
+    </main>
   );
 }
