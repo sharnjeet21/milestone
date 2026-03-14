@@ -29,7 +29,20 @@ export async function createProject(data: CreateProjectPayload): Promise<Project
   return body.project ?? (body as Project);
 }
 
-export async function clarifyProject(description: string) {
+export async function clarifyProject(description: string): Promise<ProjectClarification> {
+  // Local heuristic fallback — used when backend is unreachable
+  const localScore = (desc: string): ProjectClarification => {
+    const words = desc.trim().split(/\s+/).filter(Boolean).length;
+    // Score scales with description length: 30+ words → 55, 50+ → 70, 80+ → 85
+    const score = words >= 80 ? 85 : words >= 50 ? 70 : words >= 30 ? 55 : Math.min(words * 1.5, 45);
+    return {
+      clarity_score: Math.round(score),
+      ambiguous_areas: score < 55 ? ["Add more detail to your project description"] : [],
+      clarification_questions: [],
+      is_clear_enough: score >= 55,
+    };
+  };
+
   try {
     const response = await backendApi.get<ProjectClarification>("/projects/clarify", {
       params: { description },
@@ -41,13 +54,18 @@ export async function clarifyProject(description: string) {
       error.response &&
       [404, 405, 415, 422].includes(error.response.status)
     ) {
-      const fallback = await backendApi.post<ProjectClarification>(
-        "/projects/clarify",
-        { description },
-      );
-      return fallback.data;
+      try {
+        const fallback = await backendApi.post<ProjectClarification>(
+          "/projects/clarify",
+          { description },
+        );
+        return fallback.data;
+      } catch {
+        return localScore(description);
+      }
     }
-    throw error;
+    // Network error / backend down — use local score so button isn't stuck
+    return localScore(description);
   }
 }
 

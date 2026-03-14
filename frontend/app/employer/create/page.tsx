@@ -500,10 +500,8 @@ export default function EmployerCreateProjectPage() {
       setShowClarificationModal(false);
       setStage(2);
     } catch {
-      toast.error(
-        "Roadmap generation blocked",
-        "We couldn't validate the brief. Please try again in a moment.",
-      );
+      // Backend unreachable — proceed anyway since canGenerateRoadmap already passed
+      setStage(2);
     } finally {
       setIsClarifying(false);
     }

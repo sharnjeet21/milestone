@@ -1,227 +1,295 @@
-# MilestoneAI - Autonomous Project Decomposition & Payment Agent
+<div align="center">
 
-AI-powered platform that automatically breaks down projects into milestones, evaluates work quality, and manages escrow payments with Firebase authentication and database.
+# 🚀 MilestoneAI
 
-## Features
+### *The AI-Powered Freelance Platform That Guarantees Work Gets Done — and Gets Paid*
 
-- 🤖 AI-powered project decomposition into milestones
-- ✅ Automated quality evaluation with scoring
-- 💰 Smart escrow payment system with risk assessment
-- 📊 Professional Fidelity Index (PFI) scoring for freelancers
-- 🔄 Automated payment releases based on completion
-- 🔐 Firebase Authentication (Email, Google, GitHub)
-- 🗄️ Firestore Database for persistent storage
-- 🛡️ AI-powered fraud detection and risk assessment
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-milestone--i9lk.onrender.com-green?style=for-the-badge)](https://milestone-i9lk.onrender.com)
+[![Backend](https://img.shields.io/badge/⚡_Backend_API-Operational-brightgreen?style=for-the-badge)](https://milestoneai-backend.onrender.com)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-## Tech Stack
+> **The problem with freelancing isn't finding work. It's trust.**
+> Employers fear paying for work that never arrives. Freelancers fear working for clients who never pay.
+> **MilestoneAI solves both — with AI, escrow, and enforceable contracts.**
 
-- Backend: FastAPI + LangChain + OpenAI + Firebase Admin
-- Frontend: Next.js 14 + TypeScript + Tailwind CSS + Firebase SDK
-- Database: Firebase Firestore
-- Authentication: Firebase Auth
-
-## Quick Start
-
-**Want to try it immediately?** See [QUICKSTART.md](QUICKSTART.md) for a 5-minute setup with sample data!
-
-### Prerequisites
-
-- Python 3.11+
-- Node.js 18+
-- Firebase project (see FIREBASE_SETUP.md)
-
-### 1. Clone and Setup
-
-```bash
-git clone <your-repo>
-cd cogni
-```
-
-### 2. Backend Setup
-
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-Create `backend/.env`:
-```env
-OPENAI_API_KEY=your_openai_api_key
-STRIPE_SECRET_KEY=your_stripe_key
-DATABASE_URL=sqlite:///./milestoneai.db
-FIREBASE_SERVICE_ACCOUNT_PATH=../firebase-service-account.json
-```
-
-### 3. Frontend Setup
-
-```bash
-cd frontend
-npm install
-```
-
-Create `frontend/.env.local`:
-```env
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-NEXT_PUBLIC_API_URL=http://localhost:9001/api
-```
-
-### 4. Firebase Setup
-
-1. Create a Firebase project at https://console.firebase.google.com
-2. Enable Authentication (Email/Password, Google, GitHub)
-3. Create Firestore Database
-4. Download service account JSON and save as `firebase-service-account.json` in root
-5. See `FIREBASE_SETUP.md` for detailed instructions
-
-### 5. Run the Project
-
-**Option 1: Using startup scripts**
-```bash
-# Terminal 1 - Backend
-./start-backend.sh
-
-# Terminal 2 - Frontend
-./start-frontend.sh
-```
-
-**Option 2: Manual**
-```bash
-# Terminal 1 - Backend
-cd backend
-source venv/bin/activate
-python main.py
-
-# Terminal 2 - Frontend
-cd frontend
-npm run dev
-```
-
-Visit:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:9001
-- API Docs: http://localhost:9001/docs
-
-## Project Structure
-
-```
-cogni/
-├── backend/
-│   ├── agents/           # AI agents (NLP, Quality, Payment, PFI, Escrow)
-│   ├── database/         # Firebase integration
-│   ├── middleware/       # Auth middleware
-│   ├── models/          # Data models
-│   ├── main.py          # FastAPI app
-│   └── requirements.txt
-├── frontend/
-│   ├── app/             # Next.js pages
-│   │   ├── login/       # Login page
-│   │   ├── signup/      # Signup page
-│   │   ├── employer/    # Employer dashboard
-│   │   ├── freelancer/  # Freelancer portal
-│   │   └── escrow/      # Smart escrow vault
-│   └── lib/             # Firebase, Auth, API utilities
-├── firebase-service-account.json  # Firebase credentials (gitignored)
-└── FIREBASE_SETUP.md    # Detailed Firebase setup guide
-```
-
-## Key Features
-
-### AI Decomposition
-Automatically breaks projects into logical, measurable milestones with AI precision using GPT-4.
-
-### Smart Escrow
-- Risk assessment for milestone payments
-- Payment schedule optimization
-- Fraud detection
-- Automated releases based on quality scores
-
-### Quality Scoring
-AI evaluates submissions against objective criteria with detailed feedback and scoring.
-
-### PFI Score
-Professional Fidelity Index (300-900) tracks freelancer reliability and performance.
-
-### Firebase Integration
-- Secure authentication with multiple providers
-- Real-time database with Firestore
-- Automatic data persistence
-- Fallback to in-memory storage if Firebase unavailable
-
-## API Endpoints
-
-### Projects
-- `POST /api/projects/create` - Create new project with AI decomposition
-- `GET /api/projects` - List all projects
-- `GET /api/projects/{id}` - Get project details
-- `POST /api/projects/clarify` - Clarify project description
-
-### Milestones
-- `POST /api/milestones/submit` - Submit milestone work
-- `GET /api/projects/{id}/milestones` - Get project milestones
-
-### Escrow
-- `GET /api/escrow/{vault_id}` - Get vault status
-- `POST /api/escrow/assess-risk` - Assess payment risk
-- `POST /api/escrow/optimize-schedule` - Optimize payment schedule
-- `POST /api/escrow/detect-fraud` - Detect fraud signals
-
-### Freelancer
-- `GET /api/freelancer/{id}/pfi` - Get PFI score
-
-## Environment Variables
-
-### Backend (.env)
-- `OPENAI_API_KEY` - OpenAI API key for AI features
-- `STRIPE_SECRET_KEY` - Stripe key for payments (optional)
-- `DATABASE_URL` - Database connection string
-- `FIREBASE_SERVICE_ACCOUNT_PATH` - Path to Firebase service account JSON
-
-### Frontend (.env.local)
-- `NEXT_PUBLIC_FIREBASE_*` - Firebase configuration
-- `NEXT_PUBLIC_API_URL` - Backend API URL
-
-## Development
-
-### Mock Mode
-If OpenAI API key is not set, the system automatically uses mock implementations for testing.
-
-### Firebase Fallback
-If Firebase is not configured, the system falls back to in-memory storage.
-
-## Security
-
-- Firebase Authentication for secure user management
-- Firestore Security Rules for data protection
-- Token-based API authentication
-- Environment variables for sensitive data
-- Service account for backend Firebase access
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details
-
-## Support
-
-For issues and questions:
-- Check FIREBASE_SETUP.md for Firebase configuration
-- Review API documentation at http://localhost:9001/docs
-- Open an issue on GitHub
+</div>
 
 ---
 
-Built with ❤️ using AI, FastAPI, Next.js, and Firebase
+## 🎯 The Problem We're Solving
+
+The global freelance market is worth **$1.5 trillion** — yet it's broken at its core:
+
+| Pain Point | Reality |
+|---|---|
+| 💸 Payment disputes | 71% of freelancers report late or non-payment |
+| 📋 Scope creep | Employers add work without paying more |
+| ⭐ Fake ratings | Star systems are gamed and meaningless |
+| 📄 No legal protection | Verbal agreements, no enforceable contracts |
+| 🔍 Bad hiring | Employers can't objectively evaluate freelancer quality |
+
+**MilestoneAI is the platform that fixes all of this — simultaneously.**
+
+---
+
+## ✨ What Makes Us Different
+
+### 🤖 AI at the Core — Not as a Feature, but as Infrastructure
+
+Every critical decision on MilestoneAI is powered by AI:
+
+- **AI evaluates milestone submissions** — not humans, not stars. The AI reads the work, checks it against the agreed checklist, and releases payment automatically.
+- **AI generates project roadmaps** — describe your project in plain English, get a structured milestone plan with payment splits in seconds.
+- **AI scores freelancers** — our **PFI (Performance Fidelity Index)** is a credit-score-like metric built from real delivery data, not subjective reviews.
+- **AI clarifies project briefs** — before a project starts, AI identifies ambiguous requirements and asks the right questions.
+
+### 🔒 Escrow That Actually Works
+
+```
+Employer deposits funds → Funds locked in vault → Freelancer completes milestone
+→ AI verifies work → Payment auto-released → Both parties protected
+```
+
+No more "I'll pay you when I'm happy." The money is already there. The AI decides.
+
+### 📊 PFI Score — The Freelancer Credit Score
+
+Forget 5-star ratings. The **Performance Fidelity Index** tracks:
+- On-time delivery rate
+- Quality scores across milestones
+- Revision frequency
+- Completion consistency
+
+A freelancer with PFI 850 is objectively better than one with PFI 600 — and employers can see exactly why.
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        FRONTEND                              │
+│              Next.js 14 · TypeScript · Tailwind              │
+│         Framer Motion · Firebase Auth · Firestore            │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ REST API
+┌──────────────────────▼──────────────────────────────────────┐
+│                        BACKEND                               │
+│              FastAPI · Python · OpenAI GPT-4                 │
+│         Firebase Admin · PayPal SDK · Pydantic               │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────────────┐
+│                      DATABASE                                │
+│              Firebase Firestore (NoSQL)                      │
+│         Real-time sync · Offline support · Scalable          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🌟 Feature Showcase
+
+### For Employers
+
+| Feature | Description |
+|---|---|
+| 🧠 **AI Project Brief** | Type your idea in plain English — AI structures it into milestones with budgets |
+| 🔍 **Smart Freelancer Search** | Search by skill, PFI score, availability, and past performance |
+| 💰 **Escrow Vault** | Lock funds before work starts — release only when AI confirms delivery |
+| 📄 **Auto-Generated MOU** | Legally-structured contracts created from your project terms |
+| ⚖️ **Dispute Centre** | Raise disputes — escrow freezes automatically until resolved |
+| 📊 **Project Dashboard** | Real-time milestone tracking with AI risk assessment |
+
+### For Freelancers
+
+| Feature | Description |
+|---|---|
+| 📈 **PFI Score** | Your objective reputation — built from real delivery data |
+| 🛡️ **Legal Protections** | Illness clauses, scope creep shields, unfair penalty protection — enforced by the platform |
+| 💼 **Portfolio** | Showcase work with employer ratings and project links |
+| 🤝 **Task Sharing** | Share milestone tasks with fellow freelancers with one click |
+| 💬 **Direct Messaging** | Chat with employers directly within the platform |
+| 📋 **Task Board** | Kanban-style task management with collaboration features |
+
+### Platform-Wide
+
+| Feature | Description |
+|---|---|
+| 🔐 **Firebase Auth** | Google, GitHub, and email sign-in |
+| 💳 **PayPal Integration** | Real payment processing with sandbox support |
+| 📱 **Fully Responsive** | Works on mobile, tablet, and desktop |
+| 🌙 **Dark Mode** | System-aware theme switching |
+| ⚡ **Real-time Updates** | Firestore live sync across all clients |
+
+---
+
+## 🤖 AI Agents
+
+MilestoneAI runs **5 specialized AI agents** under the hood:
+
+```python
+NLPAgent          → Parses project descriptions, extracts requirements
+QualityAgent      → Evaluates milestone submissions against checklists  
+PFIAgent          → Calculates and updates freelancer performance scores
+EscrowAgent       → Manages fund release decisions based on AI evaluation
+PaymentAgent      → Optimizes payment schedules and handles penalty logic
+```
+
+Each agent is independently testable, modular, and powered by GPT-4.
+
+---
+
+## 📁 Project Structure
+
+```
+milestone/
+├── frontend/                    # Next.js 14 App Router
+│   ├── app/
+│   │   ├── employer/            # Employer dashboard, project creation
+│   │   ├── freelancer/          # Workspace, PFI, portfolio, tasks
+│   │   ├── disputes/            # Dispute management
+│   │   ├── chat/                # Real-time messaging
+│   │   ├── payment/             # Earnings & payouts
+│   │   └── jobs/                # Job board
+│   ├── components/              # AuthGuard, Navbar, EscrowVault, etc.
+│   └── lib/                     # API client, Firebase, types, utils
+│
+├── backend/                     # FastAPI Python backend
+│   ├── agents/                  # AI agents (NLP, Quality, PFI, Escrow, Payment)
+│   ├── routers/                 # REST endpoints (projects, escrow, disputes, etc.)
+│   ├── models/                  # Pydantic data models
+│   ├── services/                # MOU generation, notifications, search
+│   └── database/                # Firebase Admin integration
+│
+└── render.yaml                  # One-click Render deployment config
+```
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+, Python 3.11+
+- Firebase project with Firestore + Auth enabled
+- OpenAI API key
+
+### 1. Clone & Install
+
+```bash
+git clone https://github.com/sharnjeet21/milestone.git
+cd milestone
+
+# Frontend
+cd frontend && npm install
+
+# Backend
+cd ../backend && pip install -r requirements.txt
+```
+
+### 2. Configure Environment
+
+```bash
+# frontend/.env.local
+NEXT_PUBLIC_FIREBASE_API_KEY=your_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_domain
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project
+NEXT_PUBLIC_API_URL=http://localhost:9001/api
+
+# backend/.env
+OPENAI_API_KEY=your_openai_key
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
+```
+
+### 3. Run
+
+```bash
+# Terminal 1 — Backend
+cd backend && uvicorn main:app --port 9001 --reload
+
+# Terminal 2 — Frontend  
+cd frontend && npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000)
+
+---
+
+## 🌐 Deployment
+
+Deployed on **Render** with zero-config via `render.yaml`:
+
+- **Frontend**: `https://milestone-i9lk.onrender.com`
+- **Backend API**: `https://milestoneai-backend.onrender.com`
+
+Both services auto-deploy on every push to `main`.
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Frontend** | Next.js 14, TypeScript, Tailwind CSS, Framer Motion |
+| **Backend** | FastAPI, Python 3.11, Pydantic v2 |
+| **AI** | OpenAI GPT-4 (via agents) |
+| **Database** | Firebase Firestore |
+| **Auth** | Firebase Authentication |
+| **Payments** | PayPal REST SDK |
+| **Deployment** | Render (Docker + Node) |
+| **Realtime** | Firebase Firestore live listeners |
+
+---
+
+## 💡 Key Technical Innovations
+
+### 1. AI-Gated Payment Release
+Payments aren't released by employer approval — they're released by AI verification. The `QualityAgent` reads the submission, evaluates each checklist item, assigns a completion score, and calculates the exact payout percentage. This removes human bias entirely.
+
+### 2. PFI — A Credit Score for Freelancers
+Unlike star ratings (which are subjective and gameable), PFI is computed from objective delivery metrics. It updates after every milestone, tracks component breakdowns (quality, deadlines, revisions), and gives employers a reliable signal.
+
+### 3. Escrow-First Architecture
+Every project starts with funds locked. The escrow vault tracks deposits, milestone payments, penalties, and refunds with a full transaction log. Neither party can manipulate the outcome — the contract terms are enforced by code.
+
+### 4. AI-Generated Legal Documents
+The MOU service generates structured contracts from project parameters — scope, milestones, payment terms, penalty clauses, and freelancer protections. Both parties sign digitally, and the contract is stored immutably.
+
+### 5. Freelancer Rights as Platform Policy
+Protections like illness extensions, scope creep shields, and unfair penalty blocks aren't just features — they're embedded in every contract and enforced automatically. Employers literally cannot override them.
+
+---
+
+## 📸 Pages & Routes
+
+| Route | Description |
+|---|---|
+| `/` | Landing page |
+| `/employer/create` | AI project brief + roadmap generator |
+| `/employer/dashboard` | Project overview with milestone tracking |
+| `/freelancer/workspace/[id]` | Milestone submission + AI evaluation |
+| `/freelancer/pfi` | PFI score dashboard with history |
+| `/freelancer/portfolio` | Work showcase |
+| `/freelancer/protections` | Freelancer rights management |
+| `/freelancer/tasks` | Task board with sharing |
+| `/escrow` | Escrow vault management |
+| `/disputes` | Dispute centre |
+| `/chat` | Direct messaging |
+| `/payment` | Earnings & payout history |
+| `/jobs` | Job board with applications |
+
+---
+
+## 👥 Team
+
+Built with ❤️ at **IIT Roorkee Cognizance Hackathon**
+
+---
+
+<div align="center">
+
+**MilestoneAI** — *Because great work deserves guaranteed payment.*
+
+[🌐 Live Demo](https://milestone-i9lk.onrender.com) · [📦 Repository](https://github.com/sharnjeet21/milestone)
+
+</div>
