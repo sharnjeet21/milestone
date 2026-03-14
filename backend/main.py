@@ -6,7 +6,7 @@ import uuid
 import os
 from datetime import datetime
 
-import stripe_service
+import paypal_service
 
 from agents.nlp_agent import NLPAgent
 from agents.quality_agent import QualityAgent
@@ -497,102 +497,138 @@ async def detect_fraud_signals(project_id: str, milestone_id: str, freelancer_id
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ── Stripe Routes ─────────────────────────────────────────────────────────────
+# ── PayPal Routes ─────────────────────────────────────────────────────────────
 
-class CreatePaymentIntentRequest(BaseModel):
+class CreatePayPalOrderRequest(BaseModel):
     project_id: str
     vault_id: str
     amount: float
-    employer_stripe_customer_id: Optional[str] = None
+    currency: str = "USD"
 
-@app.post("/api/stripe/create-payment-intent")
-async def create_payment_intent(request: CreatePaymentIntentRequest):
+@app.post("/api/paypal/create-order")
+async def paypal_create_order(request: CreatePayPalOrderRequest):
     try:
-        result = stripe_service.create_payment_intent(
+        result = paypal_service.create_order(
             amount=request.amount,
-            employer_stripe_customer_id=request.employer_stripe_customer_id,
             project_id=request.project_id,
             vault_id=request.vault_id,
+            currency=request.currency,
+            return_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/employer/dashboard/{request.project_id}?payment=success",
+            cancel_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/employer/create?payment=cancelled",
         )
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-class CapturePaymentIntentRequest(BaseModel):
-    payment_intent_id: str
 
-@app.post("/api/stripe/capture")
-async def capture_payment_intent(request: CapturePaymentIntentRequest):
+class CapturePayPalOrderRequest(BaseModel):
+    order_id: str
+    project_id: str
+
+@app.post("/api/paypal/capture-order")
+async def paypal_capture_order(request: CapturePayPalOrderRequest):
     try:
-        result = stripe_service.capture_payment_intent(request.payment_intent_id)
+        result = paypal_service.capture_order(request.order_id)
+
+        # Persist capture_id on the project for future refunds
+        project = get_project_from_db(request.project_id)
+        if project:
+            project["paypal_order_id"] = request.order_id
+            project["paypal_capture_id"] = result.get("capture_id")
+            update_project_in_db(request.project_id, project)
+
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-class FreelancerOnboardRequest(BaseModel):
+
+class FreelancerPayPalOnboardRequest(BaseModel):
     freelancer_id: str
+    paypal_email: str
+
+class VerifyPayPalEmailRequest(BaseModel):
     email: str
 
-@app.post("/api/stripe/freelancer-onboard")
-async def freelancer_onboard(request: FreelancerOnboardRequest):
+@app.post("/api/paypal/verify-email")
+async def paypal_verify_email(request: VerifyPayPalEmailRequest):
     try:
-        account = stripe_service.create_connect_account(
-            email=request.email,
-            freelancer_id=request.freelancer_id,
-        )
-        account_id = account["account_id"]
+        result = paypal_service.verify_paypal_account(request.email)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-        base_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-        link = stripe_service.create_account_link(
-            account_id=account_id,
-            refresh_url=f"{base_url}/freelancer/workspace?onboarding=refresh",
-            return_url=f"{base_url}/freelancer/workspace?onboarding=complete",
-        )
 
-        # Persist account_id to Firestore
+@app.post("/api/paypal/freelancer-onboard")
+async def paypal_freelancer_onboard(request: FreelancerPayPalOnboardRequest):
+    try:
+        # Just save the PayPal email — no API call needed for receiving payouts
         if firebase_db.is_available():
             try:
-                firebase_db.upsert_user(request.freelancer_id, {"stripe_account_id": account_id})
+                firebase_db.upsert_user(request.freelancer_id, {
+                    "paypal_email": request.paypal_email,
+                    "paypal_connected": True,
+                })
             except Exception:
                 pass
 
-        return {"account_id": account_id, "onboarding_url": link["url"]}
+        upsert_freelancer_in_db(request.freelancer_id, {
+            **(get_freelancer_from_db(request.freelancer_id) or {}),
+            "paypal_email": request.paypal_email,
+            "paypal_connected": True,
+        })
+
+        return {"connected": True, "paypal_email": request.paypal_email}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/stripe/account-status/{freelancer_id}")
-async def get_stripe_account_status(freelancer_id: str):
+
+@app.get("/api/paypal/payout-status/{freelancer_id}")
+async def paypal_payout_status(freelancer_id: str):
     try:
         freelancer = get_freelancer_from_db(freelancer_id)
-        account_id = (freelancer or {}).get("stripe_account_id")
-        if not account_id:
-            return {"connected": False, "charges_enabled": False, "payouts_enabled": False}
-        status = stripe_service.get_account_status(account_id)
-        return {"connected": True, **status}
+        connected = bool((freelancer or {}).get("paypal_email"))
+        return {
+            "connected": connected,
+            "paypal_email": (freelancer or {}).get("paypal_email"),
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/stripe/webhook")
-async def stripe_webhook(request: Request):
+
+@app.post("/api/paypal/webhook")
+async def paypal_webhook(request: Request):
+    import json
     payload = await request.body()
-    sig_header = request.headers.get("stripe-signature", "")
-    webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    event = json.loads(payload)
+    event_type = event.get("event_type", "")
 
-    try:
-        event = stripe_service.verify_webhook(payload, sig_header, webhook_secret)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Webhook error: {e}")
+    # Optional: verify webhook signature
+    webhook_id = os.getenv("PAYPAL_WEBHOOK_ID", "")
+    if webhook_id:
+        try:
+            paypal_service.verify_webhook(
+                transmission_id=request.headers.get("paypal-transmission-id", ""),
+                timestamp=request.headers.get("paypal-transmission-time", ""),
+                webhook_id=webhook_id,
+                event_body=event,
+                cert_url=request.headers.get("paypal-cert-url", ""),
+                actual_signature=request.headers.get("paypal-transmission-sig", ""),
+                auth_algo=request.headers.get("paypal-auth-algo", ""),
+            )
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Webhook verification failed: {e}")
 
-    event_type = event.get("type", "")
+    if event_type == "PAYMENT.CAPTURE.COMPLETED":
+        resource = event.get("resource", {})
+        print(f"✅ PayPal capture completed: {resource.get('id')}")
 
-    if event_type == "payment_intent.succeeded":
-        pi = event["data"]["object"]
-        project_id = pi.get("metadata", {}).get("project_id")
-        print(f"✅ PaymentIntent succeeded for project {project_id}")
+    elif event_type == "PAYMENT.PAYOUTS-ITEM.SUCCEEDED":
+        resource = event.get("resource", {})
+        print(f"💸 PayPal payout succeeded: {resource.get('payout_item_id')}")
 
-    elif event_type == "transfer.created":
-        transfer = event["data"]["object"]
-        print(f"💸 Transfer created: {transfer['id']} → {transfer['destination']}")
+    elif event_type == "PAYMENT.CAPTURE.REFUNDED":
+        resource = event.get("resource", {})
+        print(f"↩️ PayPal refund completed: {resource.get('id')}")
 
     return {"received": True}
 

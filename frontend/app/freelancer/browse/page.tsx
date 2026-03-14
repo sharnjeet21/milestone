@@ -7,14 +7,24 @@ import {
   Briefcase,
   CheckCircle2,
   Clock3,
+  Code2,
   DollarSign,
+  FileText,
+  Lock,
+  MessageSquare,
   Search,
+  Sparkles,
   TimerReset,
   X,
+  Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getDoc, doc } from "firebase/firestore";
 
 import { useToast } from "@/context/ToastContext";
+import { onAuthChange } from "@/lib/auth";
+import { db } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import type { DeliverableType } from "@/lib/types";
 
@@ -38,6 +48,122 @@ type AppliedProject = BrowseProject & {
 };
 
 const APPLIED_PROJECTS_KEY = "freelancer:applied-projects";
+
+type AITask = {
+  id: string;
+  type: "rate" | "rewrite" | "code_eval" | "generate";
+  title: string;
+  description: string;
+  pay_rate: string;
+  est_minutes: number;
+  difficulty: "Easy" | "Medium" | "Hard";
+  domain: string;
+  available: number;
+};
+
+const aiTasks: AITask[] = [
+  {
+    id: "task_rate_001",
+    type: "rate",
+    title: "Rate AI Responses — Customer Support",
+    description: "Compare two AI-generated customer support responses and rank them by helpfulness, accuracy, and tone. No domain expertise required.",
+    pay_rate: "$15/hr",
+    est_minutes: 3,
+    difficulty: "Easy",
+    domain: "General",
+    available: 142,
+  },
+  {
+    id: "task_rewrite_001",
+    type: "rewrite",
+    title: "Rewrite AI Blog Post — Tech Startup",
+    description: "Improve an AI-generated blog post to sound more natural, accurate, and engaging. Fix factual errors and improve flow.",
+    pay_rate: "$22/hr",
+    est_minutes: 15,
+    difficulty: "Medium",
+    domain: "Writing",
+    available: 38,
+  },
+  {
+    id: "task_code_001",
+    type: "code_eval",
+    title: "Evaluate Python Code Quality",
+    description: "Review AI-generated Python functions for correctness, edge cases, and best practices. Provide structured feedback.",
+    pay_rate: "$40/hr",
+    est_minutes: 20,
+    difficulty: "Hard",
+    domain: "Engineering",
+    available: 24,
+  },
+  {
+    id: "task_generate_001",
+    type: "generate",
+    title: "Generate Math Problem-Solution Pairs",
+    description: "Create high-quality math problems with step-by-step solutions for AI training. Algebra and calculus level.",
+    pay_rate: "$28/hr",
+    est_minutes: 12,
+    difficulty: "Medium",
+    domain: "Math / Science",
+    available: 67,
+  },
+  {
+    id: "task_rate_002",
+    type: "rate",
+    title: "Rank AI Code Explanations",
+    description: "Given a code snippet, rank 3 AI-generated explanations from best to worst. Requires basic programming knowledge.",
+    pay_rate: "$18/hr",
+    est_minutes: 5,
+    difficulty: "Easy",
+    domain: "Engineering",
+    available: 89,
+  },
+  {
+    id: "task_rewrite_002",
+    type: "rewrite",
+    title: "Improve AI Legal Document Summary",
+    description: "Rewrite an AI-generated legal document summary to be more accurate and readable. Law or paralegal background preferred.",
+    pay_rate: "$35/hr",
+    est_minutes: 25,
+    difficulty: "Hard",
+    domain: "Legal",
+    available: 12,
+  },
+  {
+    id: "task_generate_002",
+    type: "generate",
+    title: "Create Instruction-Following Examples",
+    description: "Write diverse prompt-response pairs that demonstrate following complex multi-step instructions accurately.",
+    pay_rate: "$20/hr",
+    est_minutes: 10,
+    difficulty: "Medium",
+    domain: "General",
+    available: 203,
+  },
+  {
+    id: "task_code_002",
+    type: "code_eval",
+    title: "Debug AI-Generated React Components",
+    description: "Find bugs and suggest improvements in AI-generated React/TypeScript components. Must know React hooks and TypeScript.",
+    pay_rate: "$45/hr",
+    est_minutes: 30,
+    difficulty: "Hard",
+    domain: "Frontend",
+    available: 18,
+  },
+];
+
+const taskTypeConfig = {
+  rate: { label: "Rate & Rank", icon: MessageSquare, color: "bg-blue-500/10 text-blue-600 dark:text-blue-400", border: "border-blue-500/20" },
+  rewrite: { label: "Rewrite", icon: FileText, color: "bg-purple-500/10 text-purple-600 dark:text-purple-400", border: "border-purple-500/20" },
+  code_eval: { label: "Code Eval", icon: Code2, color: "bg-green-500/10 text-green-600 dark:text-green-400", border: "border-green-500/20" },
+  generate: { label: "Generate", icon: Sparkles, color: "bg-amber-500/10 text-amber-600 dark:text-amber-400", border: "border-amber-500/20" },
+};
+
+const difficultyColor = {
+  Easy: "bg-green-500/10 text-green-700 dark:text-green-300",
+  Medium: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  Hard: "bg-red-500/10 text-red-700 dark:text-red-300",
+};
 
 const mockProjects: BrowseProject[] = [
   {
@@ -177,6 +303,8 @@ function loadAppliedProjects() {
 
 export default function FreelancerBrowsePage() {
   const { toast } = useToast();
+  const router = useRouter();
+  const [profileStatus, setProfileStatus] = useState<'loading' | 'incomplete' | 'ok'>('loading');
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState<DeliverableType | "all">("all");
   const [maxBudget, setMaxBudget] = useState(12000);
@@ -184,6 +312,16 @@ export default function FreelancerBrowsePage() {
   const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
   const [appliedProjects, setAppliedProjects] = useState<AppliedProject[]>([]);
   const [selectedProject, setSelectedProject] = useState<BrowseProject | null>(null);
+
+  useEffect(() => {
+    const unsub = onAuthChange(async (u) => {
+      if (!u) { router.push('/login'); return; }
+      const snap = await getDoc(doc(db, 'users', u.uid));
+      const complete = snap.data()?.profileComplete;
+      setProfileStatus(complete ? 'ok' : 'incomplete');
+    });
+    return unsub;
+  }, [router]);
 
   useEffect(() => {
     setAppliedProjects(loadAppliedProjects());
@@ -251,6 +389,34 @@ export default function FreelancerBrowsePage() {
 
   return (
     <>
+      {/* Profile incomplete gate */}
+      {profileStatus === 'incomplete' && (
+        <div className="min-h-[calc(100svh-3.5rem)] flex items-center justify-center px-4 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.06),_transparent_28%),linear-gradient(180deg,_rgba(255,255,255,0.96),_rgba(240,253,250,0.86)_52%,_rgba(255,255,255,1))]">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-[2rem] border border-border/60 bg-white/80 backdrop-blur p-10 text-center max-w-md w-full shadow-xl shadow-slate-900/5"
+          >
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-yellow-500/10 flex items-center justify-center mb-5">
+              <Lock className="w-6 h-6 text-yellow-600" />
+            </div>
+            <p className="text-sm font-medium uppercase tracking-[0.24em] text-yellow-600 mb-2">Access restricted</p>
+            <h2 className="text-2xl font-medium text-foreground mb-3">Complete your profile first</h2>
+            <p className="text-sm text-muted-foreground mb-8">
+              You need to fill in your profile information before you can browse and apply to projects.
+            </p>
+            <Link
+              href="/profile"
+              className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-green-600 text-sm font-medium text-white transition hover:bg-green-700"
+            >
+              Complete Profile
+            </Link>
+          </motion.div>
+        </div>
+      )}
+
+      {profileStatus !== 'incomplete' && (
+      <>
       <main className="min-h-[calc(100svh-3.5rem)] px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <motion.div
@@ -271,18 +437,24 @@ export default function FreelancerBrowsePage() {
           </motion.div>
 
           <Tabs.Root defaultValue="browse" className="mt-8">
-            <Tabs.List className="grid w-full max-w-md grid-cols-2 rounded-2xl border border-border/50 bg-foreground/[0.03] p-1">
+            <Tabs.List className="grid w-full max-w-lg grid-cols-3 rounded-2xl border border-border/50 bg-foreground/[0.03] p-1">
               <Tabs.Trigger
                 value="browse"
                 className="rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground transition data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
               >
-                Browse
+                Projects
+              </Tabs.Trigger>
+              <Tabs.Trigger
+                value="tasks"
+                className="rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground transition data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+              >
+                AI Tasks
               </Tabs.Trigger>
               <Tabs.Trigger
                 value="active"
                 className="rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground transition data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
               >
-                My Active Projects
+                My Active
               </Tabs.Trigger>
             </Tabs.List>
 
@@ -463,6 +635,91 @@ export default function FreelancerBrowsePage() {
               </section>
             </Tabs.Content>
 
+            <Tabs.Content value="tasks" className="mt-8 space-y-6">
+              <motion.div
+                whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                className="rounded-[2rem] border border-border/60 bg-white/80 p-6 shadow-lg shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium uppercase tracking-[0.24em] text-green-600 dark:text-green-400">AI Training Tasks</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Pick up tasks anytime. Paid weekly via PayPal.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(taskTypeConfig).map(([key, cfg]) => {
+                      const Icon = cfg.icon;
+                      return (
+                        <span key={key} className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium", cfg.color, cfg.border)}>
+                          <Icon className="h-3 w-3" />
+                          {cfg.label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+
+              <div className="grid gap-5 lg:grid-cols-2">
+                {aiTasks.map((task, index) => {
+                  const cfg = taskTypeConfig[task.type];
+                  const Icon = cfg.icon;
+                  return (
+                    <motion.div
+                      key={task.id}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                      transition={{ duration: 0.35, delay: index * 0.05 }}
+                      className="rounded-[1.75rem] border border-border/60 bg-white/85 p-6 shadow-sm shadow-slate-900/5 dark:bg-zinc-900/70"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className={cn("inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border", cfg.border, cfg.color)}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", difficultyColor[task.difficulty])}>
+                            {task.difficulty}
+                          </span>
+                          <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                            {task.domain}
+                          </span>
+                        </div>
+                      </div>
+
+                      <h3 className="mt-4 text-base font-medium text-foreground">{task.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">{task.description}</p>
+
+                      <div className="mt-5 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1.5">
+                            <DollarSign className="h-3.5 w-3.5 text-green-600" />
+                            <span className="font-medium text-green-600 dark:text-green-400">{task.pay_rate}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Clock3 className="h-3.5 w-3.5" />
+                            ~{task.est_minutes} min
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Zap className="h-3.5 w-3.5" />
+                            {task.available} available
+                          </div>
+                        </div>
+                        <motion.button
+                          type="button"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => toast.success("Task claimed", `You've picked up "${task.title}". Check My Active tab.`)}
+                          className="inline-flex h-9 items-center justify-center rounded-xl bg-green-600 px-4 text-sm font-medium text-white transition hover:bg-green-700"
+                        >
+                          Start Task
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </Tabs.Content>
+
             <Tabs.Content value="active" className="mt-8">
               <div className="grid gap-6 lg:grid-cols-2">
                 {appliedProjects.length ? (
@@ -623,6 +880,8 @@ export default function FreelancerBrowsePage() {
           </>
         ) : null}
       </AnimatePresence>
+      </>
+      )}
     </>
   );
 }

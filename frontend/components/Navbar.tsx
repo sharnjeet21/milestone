@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { HelpCircle, History, LogOut, Menu, User as UserIcon, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { onAuthChange, logout } from "@/lib/auth";
+import { onAuthChange, logout, getUserProfile } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import type { User } from "firebase/auth";
 
@@ -31,13 +31,19 @@ const navByRole: Record<Exclude<Role, null> | "guest", NavItem[]> = {
   ],
   freelancer: [
     { label: "Home", href: "/" },
-    { label: "Missions", href: "/freelancer/browse" },
-    { label: "My Workspace", href: "/freelancer/workspace" },
+    { label: "Tasks", href: "/freelancer/browse" },
+    { label: "Workspace", href: "/freelancer/workspace" },
     { label: "Earnings", href: "/payment" },
-    { label: "Enablement", href: "/freelancer/pfi" },
-    { label: "Feedback", href: "/escrow" },
+    { label: "PFI Score", href: "/freelancer/pfi" },
+    { label: "Escrow", href: "/escrow" },
   ],
-  guest: sharedNav,
+  guest: [
+    { label: "Home", href: "/" },
+    { label: "Browse Tasks", href: "/freelancer/browse" },
+    { label: "Earnings", href: "/payment" },
+    { label: "PFI Score", href: "/freelancer/pfi" },
+    { label: "Get Started", href: "/onboarding" },
+  ],
 };
 
 function isActivePath(pathname: string, href: string) {
@@ -152,10 +158,23 @@ export function Navbar() {
   }, []);
 
   useEffect(() => {
-    const unsub = onAuthChange((firebaseUser) => {
+    const unsub = onAuthChange(async (firebaseUser) => {
       setUser(firebaseUser);
       setAuthReady(true);
-      if (firebaseUser) syncRole();
+      if (firebaseUser) {
+        // Try Firestore profile first, fall back to localStorage
+        try {
+          const profile = await getUserProfile(firebaseUser.uid);
+          if (profile?.role) {
+            setRole(profile.role);
+            window.localStorage.setItem("role", profile.role);
+            return;
+          }
+        } catch { /* fall through */ }
+        syncRole();
+      } else {
+        setRole(null);
+      }
     });
     return unsub;
   }, [syncRole]);

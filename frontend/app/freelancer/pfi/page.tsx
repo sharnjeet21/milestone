@@ -721,6 +721,65 @@ export default function FreelancerPfiPage() {
                 })}
               </div>
             </section>
+
+            {/* Leaderboard */}
+            <motion.section
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+              className="rounded-[2rem] border border-border/60 bg-white/85 p-8 shadow-xl shadow-slate-900/5 backdrop-blur dark:bg-zinc-900/70"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-medium text-foreground">Community Leaderboard</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">Top earners this month by PFI score.</p>
+                </div>
+                <span className="rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1 text-xs font-medium text-green-700 dark:text-green-300">
+                  Live
+                </span>
+              </div>
+              <div className="mt-6 space-y-3">
+                {[
+                  { rank: 1, name: "Priya S.", domain: "ML Engineer", score: 872, earned: 3240, tier: "ELITE" },
+                  { rank: 2, name: "Carlos M.", domain: "Technical Writer", score: 841, earned: 2890, tier: "ELITE" },
+                  { rank: 3, name: "Aisha K.", domain: "Data Scientist", score: 818, earned: 2650, tier: "ELITE" },
+                  { rank: 4, name: "James T.", domain: "Frontend Dev", score: 791, earned: 2100, tier: "EXCELLENT" },
+                  { rank: 5, name: "Mei L.", domain: "Researcher", score: 764, earned: 1870, tier: "EXCELLENT" },
+                ].map((entry) => (
+                  <div
+                    key={entry.rank}
+                    className={`flex items-center justify-between rounded-2xl border px-5 py-4 ${
+                      entry.rank <= 3
+                        ? "border-green-500/20 bg-green-500/5"
+                        : "border-border/50 bg-background/60"
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+                        entry.rank === 1 ? "bg-amber-400 text-white" :
+                        entry.rank === 2 ? "bg-zinc-300 text-zinc-800" :
+                        entry.rank === 3 ? "bg-amber-600/80 text-white" :
+                        "bg-foreground/10 text-foreground"
+                      }`}>
+                        {entry.rank}
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{entry.name}</p>
+                        <p className="text-xs text-muted-foreground">{entry.domain}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6 text-sm">
+                      <div className="text-right">
+                        <p className="font-medium text-foreground">{entry.score}</p>
+                        <p className="text-xs text-muted-foreground">PFI</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-green-600 dark:text-green-400">{currency(entry.earned)}</p>
+                        <p className="text-xs text-muted-foreground">this month</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.section>
           </Tabs.Content>
 
           <Tabs.Content value="history" className="mt-8 space-y-6">

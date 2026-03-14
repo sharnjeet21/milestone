@@ -44,6 +44,8 @@ export interface Project {
   created_at: string;
   project_summary: string;
   risk_factors: string[];
+  paypal_capture_id?: string;
+  paypal_order_id?: string;
 }
 
 export interface FreelancerProfile {

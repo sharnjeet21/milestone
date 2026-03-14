@@ -9,6 +9,7 @@ import {
   ChevronUp,
   CircleDollarSign,
   ClipboardList,
+  CreditCard,
   Loader2,
   LockKeyhole,
   Plus,
@@ -213,6 +214,89 @@ function getClarityColor(score: number) {
   };
 }
 
+// ── PayPal checkout helper ────────────────────────────────────────────────────
+
+import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
+
+function PayPalCheckout({
+  amount,
+  projectId,
+  vaultId,
+  onSuccess,
+  onCancel,
+}: {
+  amount: number;
+  projectId: string;
+  vaultId: string;
+  onSuccess: (captureId: string) => void;
+  onCancel: () => void;
+}) {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9001/api";
+  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "";
+
+  const createOrder = async () => {
+    const res = await fetch(`${apiUrl}/paypal/create-order`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project_id: projectId, vault_id: vaultId, amount }),
+    });
+    const data = await res.json();
+    // Mock mode
+    if (data.mock) {
+      onSuccess(data.order_id);
+      return data.order_id;
+    }
+    return data.order_id;
+  };
+
+  const onApprove = async (data: { orderID: string }) => {
+    const res = await fetch(`${apiUrl}/paypal/capture-order`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order_id: data.orderID, project_id: projectId }),
+    });
+    const capture = await res.json();
+    onSuccess(capture.capture_id || data.orderID);
+  };
+
+  // No real client ID — use mock flow
+  if (!clientId || clientId.startsWith("YOUR_")) {
+    return (
+      <div className="space-y-3">
+        <p className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
+          PayPal keys not configured — running in mock mode. Add your Client ID to <code>.env.local</code> for real payments.
+        </p>
+        <button
+          type="button"
+          onClick={() => onSuccess(`MOCK-${Date.now()}`)}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0070ba] py-3 text-sm font-medium text-white transition hover:bg-[#005ea6]"
+        >
+          <LockKeyhole className="h-4 w-4" />
+          Simulate PayPal Payment (Mock)
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="w-full rounded-xl border border-border/60 py-2.5 text-sm font-medium transition hover:bg-foreground/5"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <PayPalScriptProvider options={{ clientId, currency: "USD" }}>
+      <PayPalButtons
+        style={{ layout: "vertical", color: "blue", shape: "rect", label: "pay" }}
+        createOrder={createOrder}
+        onApprove={onApprove}
+        onCancel={onCancel}
+      />
+    </PayPalScriptProvider>
+  );
+}
+
 export default function EmployerCreateProjectPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -235,6 +319,7 @@ export default function EmployerCreateProjectPage() {
   const [createdProject, setCreatedProject] = useState<Project | null>(null);
   const [expandedMilestones, setExpandedMilestones] = useState<Record<string, boolean>>({});
   const [isLockingFunds, setIsLockingFunds] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const totalBudgetNumber = Number(form.total_budget || 0);
   const timelineNumber = Number(form.timeline_days || 0);
@@ -422,14 +507,18 @@ export default function EmployerCreateProjectPage() {
   };
 
   const handleConfirmEscrow = () => {
-    if (!createdProject) {
-      return;
-    }
+    if (!createdProject) return;
+    setShowPaymentModal(true);
+  };
 
+  const handlePaymentSuccess = (captureId: string) => {
+    setShowPaymentModal(false);
     setIsLockingFunds(true);
-
+    if (createdProject) {
+      persistProject({ ...createdProject, paypal_capture_id: captureId });
+    }
     window.setTimeout(() => {
-      router.push(`/employer/dashboard/${createdProject.id}`);
+      router.push(`/employer/dashboard/${createdProject!.id}`);
     }, 900);
   };
 
@@ -1139,6 +1228,61 @@ export default function EmployerCreateProjectPage() {
               </div>
             </motion.div>
           </motion.div>
+        ) : null}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showPaymentModal && createdProject ? (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[90] bg-slate-950/50 backdrop-blur-sm"
+              onClick={() => setShowPaymentModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 32 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="fixed left-1/2 top-1/2 z-[91] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-[2rem] border border-border/60 bg-background p-8 shadow-2xl"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium uppercase tracking-[0.24em] text-green-600">
+                    Secure payment
+                  </p>
+                  <h2 className="mt-2 text-2xl font-medium text-foreground">
+                    Fund escrow vault
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {currency(createdProject.total_budget)} held securely until milestones are approved.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentModal(false)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/60"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="mt-6 flex items-center gap-3 rounded-2xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-700 dark:text-blue-300">
+                <CreditCard className="h-4 w-4 shrink-0" />
+                Pay securely via PayPal. Funds are held in escrow and only released when milestones pass AI verification.
+              </div>
+
+              <div className="mt-6">
+                <PayPalCheckout
+                  amount={createdProject.total_budget}
+                  projectId={createdProject.id}
+                  vaultId={createdProject.vault_id}
+                  onSuccess={handlePaymentSuccess}
+                  onCancel={() => setShowPaymentModal(false)}
+                />
+              </div>
+            </motion.div>
+          </>
         ) : null}
       </AnimatePresence>
     </>
