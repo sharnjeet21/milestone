@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🚀 MilestoneAI
+# 🚀 MilestoneAI <!-- updated -->
 
 ### *The AI-Powered Freelance Platform That Guarantees Work Gets Done — and Gets Paid*
 
